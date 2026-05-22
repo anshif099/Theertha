@@ -1,0 +1,22 @@
+#center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: 32px 20px;
+  box-sizing: border-box;
+}
+
+.brand {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+}
+
+.title-logo {
+  width: min(180px, 46vw);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
