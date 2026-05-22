@@ -61,6 +61,7 @@ export default function TempleTable({
           <thead>
             <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-sm text-[#42516A]">
               <th className="px-6 py-4 font-semibold">Temple</th>
+              <th className="px-6 py-4 font-semibold">Login ID</th>
               <th className="px-6 py-4 font-semibold">Deity</th>
               <th className="px-6 py-4 font-semibold">District</th>
               <th className="px-6 py-4 font-semibold">Plan</th>
@@ -85,6 +86,11 @@ export default function TempleTable({
                   <p className="mt-2 text-sm font-semibold text-[#9C7414]">
                     {temple.contact}
                   </p>
+                </td>
+                <td className="px-6 py-5">
+                  <span className="inline-flex rounded-md bg-[#EFE6D3] px-3 py-2 font-mono text-sm font-semibold text-[#0B1F3A] ring-1 ring-[#D4A017]/22">
+                    {temple.loginId}
+                  </span>
                 </td>
                 <td className="px-6 py-5 text-sm font-semibold text-[#253A58]">
                   {temple.deity}
@@ -132,7 +138,7 @@ export default function TempleTable({
             {!temples.length ? (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   className="px-6 py-14 text-center text-[#42516A]"
                 >
                   No temples found. Add a new temple or adjust your search.

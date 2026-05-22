@@ -1,7 +1,8 @@
-const CACHE_NAME = 'theertha-pwa-v5'
+const CACHE_NAME = 'theertha-pwa-v8'
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/favicon.ico',
   '/manifest.webmanifest',
   '/logo.png',
   '/pwa-192.png',

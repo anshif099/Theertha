@@ -25,12 +25,6 @@ export default function Navbar() {
             </a>
           ))}
         </div>
-        <a
-          href="/superadmin"
-          className="rounded-md border border-[#D4A017]/50 bg-[#D4A017]/12 px-4 py-2 text-sm font-semibold text-[#F8F6F0] shadow-[0_0_34px_rgba(212,160,23,0.14)] transition hover:border-[#F7D77C] hover:bg-[#D4A017]/22"
-        >
-          Super Admin
-        </a>
       </nav>
     </header>
   )

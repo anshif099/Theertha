@@ -29,6 +29,7 @@ export default function SuperAdminPage() {
         temple.name,
         temple.deity,
         temple.district,
+        temple.loginId,
         temple.status,
         temple.plan,
         temple.contact,

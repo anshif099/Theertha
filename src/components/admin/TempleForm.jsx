@@ -1,15 +1,21 @@
 import { useState } from 'react'
-import { Save, X } from 'lucide-react'
+import { KeyRound, Save, X } from 'lucide-react'
+import { createTempleLoginId } from '../../lib/templeStore.js'
 
-const emptyTemple = {
-  id: '',
-  name: '',
-  deity: '',
-  district: 'Thiruvananthapuram',
-  status: 'Onboarding',
-  plan: 'Basic',
-  contact: '',
-  description: '',
+const defaultDistrict = 'Thiruvananthapuram'
+
+function createEmptyTemple() {
+  return {
+    id: '',
+    loginId: createTempleLoginId(defaultDistrict),
+    name: '',
+    deity: '',
+    district: defaultDistrict,
+    status: 'Onboarding',
+    plan: 'Basic',
+    contact: '',
+    description: '',
+  }
 }
 
 const districts = [
@@ -35,19 +41,22 @@ const inputClass =
   'mt-2 min-h-12 w-full rounded-md border border-[#D4A017]/22 bg-[#F8F6F0] px-4 text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/48 focus:border-[#D4A017] focus:bg-white'
 
 export default function TempleForm({ editingTemple, onCancel, onSave }) {
-  const [form, setForm] = useState(() => editingTemple || emptyTemple)
+  const [form, setForm] = useState(() => editingTemple || createEmptyTemple())
 
   function updateField(event) {
+    const { name, value } = event.target
+
     setForm((current) => ({
       ...current,
-      [event.target.name]: event.target.value,
+      [name]: value,
+      ...(name === 'district' ? { loginId: createTempleLoginId(value) } : {}),
     }))
   }
 
   function handleSubmit(event) {
     event.preventDefault()
     onSave(form)
-    setForm(emptyTemple)
+    setForm(createEmptyTemple())
   }
 
   return (
@@ -74,6 +83,23 @@ export default function TempleForm({ editingTemple, onCancel, onSave }) {
       </div>
 
       <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
+        <label className="block rounded-lg border border-[#D4A017]/18 bg-[#EFE6D3]/55 p-4">
+          <span className="flex items-center gap-2 text-sm font-semibold text-[#9C7414]">
+            <KeyRound size={16} aria-hidden="true" />
+            Temple Login ID
+          </span>
+          <input
+            name="loginId"
+            value={form.loginId}
+            className="mt-3 min-h-12 w-full rounded-md border border-[#D4A017]/22 bg-white px-4 font-mono text-lg font-semibold text-[#0B1F3A] outline-none"
+            readOnly
+          />
+          <p className="mt-2 text-sm leading-6 text-[#42516A]">
+            This login ID is automatically generated from the selected district
+            and saved with the temple record.
+          </p>
+        </label>
+
         <label className="block">
           <span className="text-sm font-semibold text-[#253A58]">
             Temple Name

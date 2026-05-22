@@ -87,8 +87,8 @@ export default function TempleRegistrationPage() {
               {editingTemple ? editingTemple.name : 'New Temple Registration'}
             </h1>
             <p className="mt-3 max-w-2xl leading-7 text-[#42516A]">
-              Add temple identity, plan, contact, status, and administration
-              notes in a focused registration page.
+              Add temple identity, randomly generated login ID, plan, contact,
+              status, and administration notes in a focused registration page.
             </p>
           </div>
           <a

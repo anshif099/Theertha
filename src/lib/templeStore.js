@@ -1,8 +1,26 @@
 const STORAGE_KEY = 'theertha-superadmin-temples'
 
+const DISTRICT_CODES = {
+  Thiruvananthapuram: 'TVM',
+  Kollam: 'KLM',
+  Pathanamthitta: 'PTA',
+  Alappuzha: 'ALP',
+  Kottayam: 'KTM',
+  Idukki: 'IDK',
+  Ernakulam: 'EKM',
+  Thrissur: 'TSR',
+  Palakkad: 'PKD',
+  Malappuram: 'MPM',
+  Kozhikode: 'KKD',
+  Wayanad: 'WYD',
+  Kannur: 'KNR',
+  Kasaragod: 'KSD',
+}
+
 export const defaultTemples = [
   {
     id: 'temple-sree-padmanabha',
+    loginId: 'THR-TVM-PAD7',
     name: 'Sree Padmanabha Temple',
     deity: 'Lord Vishnu',
     district: 'Thiruvananthapuram',
@@ -15,6 +33,7 @@ export const defaultTemples = [
   },
   {
     id: 'temple-guruvayur',
+    loginId: 'THR-TSR-GUR9',
     name: 'Guruvayur Temple',
     deity: 'Lord Krishna',
     district: 'Thrissur',
@@ -27,6 +46,7 @@ export const defaultTemples = [
   },
   {
     id: 'temple-chottanikkara',
+    loginId: 'THR-EKM-CHO4',
     name: 'Chottanikkara Temple',
     deity: 'Bhagavathy',
     district: 'Ernakulam',
@@ -48,7 +68,16 @@ export function loadTemples() {
 
   try {
     const parsed = JSON.parse(stored)
-    return Array.isArray(parsed) ? parsed : defaultTemples
+    if (!Array.isArray(parsed)) {
+      return defaultTemples
+    }
+
+    const normalizedTemples = parsed.map(normalizeTempleLogin)
+    if (JSON.stringify(normalizedTemples) !== stored) {
+      saveTemples(normalizedTemples)
+    }
+
+    return normalizedTemples
   } catch {
     return defaultTemples
   }
@@ -68,6 +97,7 @@ export function saveTemple(temple) {
   const normalizedTemple = {
     ...temple,
     id: temple.id || createTempleId(),
+    loginId: temple.loginId || createTempleLoginId(temple.district),
     updatedAt: now,
   }
 
@@ -91,4 +121,30 @@ function createTempleId() {
   }
 
   return `temple-${Date.now()}`
+}
+
+export function createTempleLoginId(district = 'Thiruvananthapuram') {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const values = new Uint32Array(4)
+  const districtCode = DISTRICT_CODES[district] || 'KER'
+
+  if (crypto.getRandomValues) {
+    crypto.getRandomValues(values)
+  } else {
+    values.forEach((_, index) => {
+      values[index] = Math.floor(Math.random() * alphabet.length)
+    })
+  }
+
+  const suffix = Array.from(values, (value) => alphabet[value % alphabet.length])
+    .join('')
+
+  return `THR-${districtCode}-${suffix}`
+}
+
+function normalizeTempleLogin(temple) {
+  return {
+    ...temple,
+    loginId: temple.loginId || createTempleLoginId(temple.district),
+  }
 }
