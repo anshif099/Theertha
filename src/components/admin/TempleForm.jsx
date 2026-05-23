@@ -40,7 +40,13 @@ const plans = ['Basic', 'Professional', 'Enterprise']
 const inputClass =
   'mt-2 min-h-12 w-full rounded-md border border-[#D4A017]/22 bg-[#F8F6F0] px-4 text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/48 focus:border-[#D4A017] focus:bg-white'
 
-export default function TempleForm({ editingTemple, onCancel, onSave }) {
+export default function TempleForm({
+  editingTemple,
+  isSaving = false,
+  onCancel,
+  onSave,
+  saveError = '',
+}) {
   const [form, setForm] = useState(() => editingTemple || createEmptyTemple())
 
   function updateField(event) {
@@ -53,10 +59,9 @@ export default function TempleForm({ editingTemple, onCancel, onSave }) {
     }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    onSave(form)
-    setForm(createEmptyTemple())
+    await onSave(form)
   }
 
   return (
@@ -206,12 +211,23 @@ export default function TempleForm({ editingTemple, onCancel, onSave }) {
           />
         </label>
 
+        {saveError ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {saveError}
+          </p>
+        ) : null}
+
         <button
           type="submit"
-          className="flex min-h-12 items-center justify-center gap-2 rounded-md bg-[#0B1F3A] px-5 py-3 font-semibold text-[#F8F6F0] shadow-[0_16px_44px_rgba(11,31,58,0.18)] transition hover:bg-[#123761]"
+          disabled={isSaving}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-md bg-[#0B1F3A] px-5 py-3 font-semibold text-[#F8F6F0] shadow-[0_16px_44px_rgba(11,31,58,0.18)] transition hover:bg-[#123761] disabled:cursor-not-allowed disabled:opacity-70"
         >
           <Save size={18} aria-hidden="true" />
-          {editingTemple ? 'Update Temple' : 'Add Temple'}
+          {isSaving
+            ? 'Saving Temple...'
+            : editingTemple
+              ? 'Update Temple'
+              : 'Add Temple'}
         </button>
       </form>
     </section>

@@ -39,7 +39,7 @@ export default function SuperAdminShell({ children, onLogout }) {
             Super Admin Access
           </p>
           <p className="mt-2 text-xs leading-5 text-[#EFE6D3]/64">
-            Temple records are stored locally for this frontend build.
+            Temple records sync to Firebase Realtime Database.
           </p>
         </div>
       </aside>

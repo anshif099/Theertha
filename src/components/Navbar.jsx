@@ -24,6 +24,12 @@ export default function Navbar() {
               {link.label}
             </a>
           ))}
+          <a
+            href="/temple-login"
+            className="rounded-md border border-[#D4A017]/32 px-4 py-2 text-sm font-semibold text-[#F7D77C] transition hover:bg-[#D4A017]/12"
+          >
+            Temple Login
+          </a>
         </div>
       </nav>
     </header>

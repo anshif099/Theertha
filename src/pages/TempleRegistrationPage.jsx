@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AdminLogin from '../components/admin/AdminLogin.jsx'
 import SuperAdminShell from '../components/admin/SuperAdminShell.jsx'
 import TempleForm from '../components/admin/TempleForm.jsx'
@@ -8,7 +8,11 @@ import {
   startAdminSession,
   verifyAdminLogin,
 } from '../lib/adminSession.js'
-import { getTemple, saveTemple } from '../lib/templeStore.js'
+import {
+  getRegisteredTemple,
+  getTemple,
+  saveTemple,
+} from '../lib/templeStore.js'
 
 function getRouteState() {
   const parts = window.location.pathname.split('/').filter(Boolean)
@@ -24,7 +28,39 @@ export default function TempleRegistrationPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(hasAdminSession)
   const [loginError, setLoginError] = useState('')
   const routeState = getRouteState()
-  const editingTemple = routeState.isEdit ? getTemple(routeState.templeId) : null
+  const [editingTemple, setEditingTemple] = useState(() =>
+    routeState.isEdit ? getTemple(routeState.templeId) : null,
+  )
+  const [isLoadingTemple, setIsLoadingTemple] = useState(routeState.isEdit)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    if (!routeState.isEdit) {
+      return undefined
+    }
+
+    let isActive = true
+
+    getRegisteredTemple(routeState.templeId)
+      .then((temple) => {
+        if (isActive) {
+          setEditingTemple(temple)
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load temple for editing:', error)
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoadingTemple(false)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [routeState.isEdit, routeState.templeId])
 
   function handleLogin(credentials) {
     if (!verifyAdminLogin(credentials)) {
@@ -42,13 +78,40 @@ export default function TempleRegistrationPage() {
     setIsAuthenticated(false)
   }
 
-  function handleSaveTemple(temple) {
-    saveTemple(temple)
-    window.location.href = '/superadmin'
+  async function handleSaveTemple(temple) {
+    setIsSaving(true)
+    setSaveError('')
+
+    try {
+      await saveTemple(temple)
+      window.location.href = '/superadmin'
+    } catch (error) {
+      console.warn('Unable to save temple:', error)
+      setSaveError('Temple could not be saved to Realtime Database.')
+      setIsSaving(false)
+    }
   }
 
   if (!isAuthenticated) {
     return <AdminLogin error={loginError} onLogin={handleLogin} />
+  }
+
+  if (routeState.isEdit && isLoadingTemple) {
+    return (
+      <SuperAdminShell onLogout={handleLogout}>
+        <section className="rounded-lg border border-[#D4A017]/18 bg-white p-8 text-center shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
+          <p className="text-sm font-semibold uppercase text-[#9C7414]">
+            Loading Temple
+          </p>
+          <h1 className="font-display mt-3 text-4xl font-semibold">
+            Syncing temple record
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl leading-7 text-[#42516A]">
+            Fetching the registered temple from Realtime Database.
+          </p>
+        </section>
+      </SuperAdminShell>
+    )
   }
 
   if (routeState.isEdit && !editingTemple) {
@@ -101,10 +164,12 @@ export default function TempleRegistrationPage() {
         <TempleForm
           key={editingTemple?.id || 'new-temple'}
           editingTemple={editingTemple}
+          isSaving={isSaving}
           onCancel={() => {
             window.location.href = '/superadmin'
           }}
           onSave={handleSaveTemple}
+          saveError={saveError}
         />
       </div>
     </SuperAdminShell>
