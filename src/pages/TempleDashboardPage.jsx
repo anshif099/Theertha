@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BedDouble,
+  Building2,
   CalendarCheck,
-  ChevronRight,
   ClipboardList,
+  FileText,
+  Heart,
   IndianRupee,
+  Landmark,
   LayoutDashboard,
   LogOut,
+  PawPrint,
+  PiggyBank,
   ReceiptText,
   Store,
   UserRoundCheck,
@@ -17,14 +22,23 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
-const navItems = [
+const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Counter', icon: ReceiptText },
   { label: 'Accounts', icon: WalletCards },
   { label: 'Nadavaravu', icon: ClipboardList },
   { label: 'Membership', icon: UsersRound },
+  { label: 'Billing', icon: FileText },
+  { label: 'Temple', icon: Landmark },
+  { label: 'Assets', icon: Building2 },
+  { label: 'Devotees', icon: Heart },
+]
+
+const addonItems = [
+  { label: 'Elephant', icon: PawPrint },
   { label: 'Guest House', icon: BedDouble },
   { label: 'Store', icon: Store },
+  { label: 'Fixed Deposit', icon: PiggyBank },
 ]
 
 const metrics = [
@@ -180,7 +194,7 @@ export default function TempleDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F6F0] text-[#0B1F3A]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
         <a href="/" aria-label="Back to THEERTHA landing page">
           <BrandMark compact />
         </a>
@@ -188,7 +202,7 @@ export default function TempleDashboardPage() {
           Main Menu
         </p>
         <nav className="mt-3 grid gap-2">
-          {navItems.map((item, index) => {
+          {mainMenuItems.map((item, index) => {
             const Icon = item.icon
             const isActive = index === 0
 
@@ -196,22 +210,38 @@ export default function TempleDashboardPage() {
               <a
                 key={item.label}
                 href="/temple/dashboard"
-                className={`flex items-center justify-between rounded-md px-4 py-3 text-sm font-semibold transition ${
+                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
                   isActive
                     ? 'bg-[#D4A017]/14 text-[#F7D77C]'
                     : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
                 }`}
               >
-                <span className="flex items-center gap-3">
-                  <Icon size={18} aria-hidden="true" />
-                  {item.label}
-                </span>
-                {isActive ? <ChevronRight size={16} aria-hidden="true" /> : null}
+                <Icon size={18} aria-hidden="true" />
+                {item.label}
               </a>
             )
           })}
         </nav>
-        <div className="absolute inset-x-5 bottom-6 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+        <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+          Addons
+        </p>
+        <nav className="mt-3 grid gap-2">
+          {addonItems.map((item) => {
+            const Icon = item.icon
+
+            return (
+              <a
+                key={item.label}
+                href="/temple/dashboard"
+                className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+              >
+                <Icon size={18} aria-hidden="true" />
+                {item.label}
+              </a>
+            )
+          })}
+        </nav>
+        <div className="mt-6 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
           <p className="text-sm font-semibold text-[#F7D77C]">
             Temple Access
           </p>
