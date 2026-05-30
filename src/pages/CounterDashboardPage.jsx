@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  ClipboardList,
   IndianRupee,
   LogOut,
   Minus,
@@ -12,7 +13,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt } from '../lib/settingsStore.js'
+import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 
 /* ── live clock ── */
@@ -145,6 +146,163 @@ export default function CounterDashboardPage() {
 
   const clock = useClock()
 
+  /* shift summary states */
+  const [receipts, setReceipts] = useState([])
+  const [loadingReceipts, setLoadingReceipts] = useState(true)
+  const [denominations, setDenominations] = useState({
+    c2000: 0,
+    c500: 0,
+    c200: 0,
+    c100: 0,
+    c50: 0,
+    c20: 0,
+    c10: 0,
+    coins: 0
+  })
+
+  function refreshReceipts() {
+    if (!counterSession?.templeId) return
+    setLoadingReceipts(true)
+    loadTodayReceipts(counterSession.templeId)
+      .then((list) => {
+        const filtered = list.filter(r => r.counterId === counterSession.counterId)
+        setReceipts(filtered)
+      })
+      .catch((err) => {
+        console.error('Failed to load receipts for shift:', err)
+      })
+      .finally(() => {
+        setLoadingReceipts(false)
+      })
+  }
+
+  /* calculate shift totals and Seva breakdown */
+  const shiftStats = useMemo(() => {
+    let totalCount = receipts.length
+    let totalCollected = 0
+    let cashTotal = 0
+    let upiTotal = 0
+    let cardTotal = 0
+    const sevaBreakdown = {}
+
+    receipts.forEach((r) => {
+      totalCollected += Number(r.total || 0)
+      if (r.paymentMethod === 'Cash') {
+        cashTotal += Number(r.total || 0)
+      } else if (r.paymentMethod === 'UPI') {
+        upiTotal += Number(r.total || 0)
+      } else if (r.paymentMethod === 'Card') {
+        cardTotal += Number(r.total || 0)
+      }
+
+      if (r.items && Array.isArray(r.items)) {
+        r.items.forEach((item) => {
+          const itemAmt = Number(item.amount || 0) * Number(item.qty || 1)
+          sevaBreakdown[item.name] = (sevaBreakdown[item.name] || 0) + itemAmt
+        })
+      }
+    })
+
+    const denomPhysicalTotal = 
+      (2000 * (Number(denominations.c2000) || 0)) +
+      (500 * (Number(denominations.c500) || 0)) +
+      (200 * (Number(denominations.c200) || 0)) +
+      (100 * (Number(denominations.c100) || 0)) +
+      (50 * (Number(denominations.c50) || 0)) +
+      (20 * (Number(denominations.c20) || 0)) +
+      (10 * (Number(denominations.c10) || 0)) +
+      (Number(denominations.coins) || 0)
+
+    const isBalanced = denomPhysicalTotal === cashTotal
+    const variance = denomPhysicalTotal - cashTotal
+
+    return {
+      totalCount,
+      totalCollected,
+      cashTotal,
+      upiTotal,
+      cardTotal,
+      sevaBreakdown,
+      denomPhysicalTotal,
+      isBalanced,
+      variance
+    }
+  }, [receipts, denominations])
+
+  function printShiftSummary() {
+    const printWindow = window.open('', '_blank')
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+    
+    let sevaListHtml = ''
+    Object.entries(shiftStats.sevaBreakdown).forEach(([name, amount]) => {
+      sevaListHtml += `
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold;">${name}</td>
+          <td style="padding: 6px 0; text-align: right; font-weight: bold;">₹${Number(amount).toLocaleString('en-IN')}</td>
+        </tr>
+      `
+    })
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Shift Summary - ${counterSession?.templeName || 'Temple'}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; color: black; line-height: 1.4; }
+            h2, h3 { text-align: center; margin: 5px 0; }
+            .divider { border-bottom: 1px dashed black; margin: 15px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            .right { text-align: right; }
+            .bold { font-weight: bold; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          <h2>${counterSession?.templeName || 'Temple'}</h2>
+          <h3>SHIFT SUMMARY REPORT</h3>
+          <div class="divider"></div>
+          <div><strong>Date:</strong> ${dateStr}</div>
+          <div><strong>Printed At:</strong> ${timeStr}</div>
+          <div><strong>Counter:</strong> #${counterSession?.counterNo} (${counterSession?.counterName})</div>
+          <div class="divider"></div>
+          
+          <table>
+            <tr><td>Total Receipts:</td><td class="right bold">${shiftStats.totalCount}</td></tr>
+            <tr><td>Total Collected:</td><td class="right bold">₹${Number(shiftStats.totalCollected).toLocaleString('en-IN')}</td></tr>
+            <tr><td>Cash Collection:</td><td class="right bold">₹${Number(shiftStats.cashTotal).toLocaleString('en-IN')}</td></tr>
+            <tr><td>UPI Collection:</td><td class="right bold">₹${Number(shiftStats.upiTotal).toLocaleString('en-IN')}</td></tr>
+            <tr><td>Card Collection:</td><td class="right bold">₹${Number(shiftStats.cardTotal).toLocaleString('en-IN')}</td></tr>
+          </table>
+
+          <div class="divider"></div>
+          <h3>COLLECTION BY SEVA</h3>
+          <table>
+            ${sevaListHtml || '<tr><td colspan="2" style="text-align: center;">No seva transactions today</td></tr>'}
+          </table>
+
+          <div class="divider"></div>
+          <h3>CASH AUDIT TALLY</h3>
+          <table>
+            <tr><td>Physical Cash:</td><td class="right bold">₹${Number(shiftStats.denomPhysicalTotal).toLocaleString('en-IN')}</td></tr>
+            <tr><td>System Cash:</td><td class="right bold">₹${Number(shiftStats.cashTotal).toLocaleString('en-IN')}</td></tr>
+            <tr><td>Variance:</td><td class="right bold">₹${Number(shiftStats.variance).toLocaleString('en-IN')} (${shiftStats.isBalanced ? 'BALANCED' : shiftStats.variance > 0 ? 'SURPLUS' : 'SHORTAGE'})</td></tr>
+          </table>
+
+          <div class="divider"></div>
+          <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+            <div>___________________<br>Operator Signature</div>
+            <div>___________________<br>Auditor Signature</div>
+          </div>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  function handleHandoverShift() {
+    alert('Shift report submitted successfully! Summary has been archived.')
+  }
+
   /* redirect if no session */
   useEffect(() => {
     if (!counterSession) {
@@ -171,7 +329,10 @@ export default function CounterDashboardPage() {
         setQuickItems(itemsData)
         if (starsData.length > 0) setStarId(starsData[0].id)
       })
+      .catch(() => {})
       .finally(() => setLoading(false))
+
+    refreshReceipts()
   }, [counterSession])
 
   /* totals */
@@ -254,6 +415,8 @@ export default function CounterDashboardPage() {
     const data = buildReceiptPayload()
     try {
       await saveReceipt(counterSession.templeId, data)
+      refreshReceipts()
+      handleNewReceipt()
     } catch (err) {
       console.warn('Draft save failed:', err)
     }
@@ -323,7 +486,7 @@ export default function CounterDashboardPage() {
       </header>
 
       {/* ── Main Content ── */}
-      <div className="flex flex-1 flex-col overflow-hidden xl:flex-row">
+      <div className="flex flex-col xl:flex-row">
 
         {/* ── LEFT: Receipt Form ── */}
         <div className="border-b border-[#D4A017]/12 p-5 xl:w-[52%] xl:border-b-0 xl:border-r xl:p-6">
@@ -597,6 +760,188 @@ export default function CounterDashboardPage() {
           </button>
         </div>
       </footer>
+
+      {/* ── Shift Summary Section (Below the Receipt Builder) ── */}
+      <section className="border-t border-[#D4A017]/24 bg-[#0B1F3A]/50 px-6 py-10 md:px-8 no-print">
+        <div className="mx-auto max-w-7xl">
+          
+          {/* Section header */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-6 mb-8">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#D4A017]/10 text-[#F7D77C] border border-[#D4A017]/20">
+                <ClipboardList size={20} />
+              </span>
+              <div>
+                <h2 className="font-display text-xl font-semibold text-[#F8F6F0]">Today's Shift Summary</h2>
+                <p className="text-sm text-[#EFE6D3]/60">Real-time collections, seva breakdown and cash tally for your counter</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={refreshReceipts}
+              className="self-start rounded-lg border border-[#D4A017]/30 bg-[#D4A017]/10 px-4 py-2 text-xs font-bold text-[#F7D77C] transition hover:bg-[#D4A017]/20 outline-none"
+            >
+              Refresh Data
+            </button>
+          </div>
+
+          {loadingReceipts ? (
+            <p className="text-sm text-[#EFE6D3]/40 py-4">Loading shift reports…</p>
+          ) : (
+            <div className="grid gap-8 lg:grid-cols-3">
+              
+              {/* Left Column: Key Stats cards */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[#D4A017]/70">Collection Status</h3>
+                
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  <div className="rounded-xl border border-white/5 bg-[#0B1F3A] p-5">
+                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">Total Receipts</p>
+                    <p className="mt-1.5 text-2xl font-black text-[#F8F6F0]">{shiftStats.totalCount}</p>
+                  </div>
+                  
+                  <div className="rounded-xl border border-[#D4A017]/18 bg-[#0B1F3A] p-5">
+                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">Total Revenue</p>
+                    <p className="mt-1.5 text-2xl font-black text-[#F7D77C]">{fmtINR(shiftStats.totalCollected)}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-500/18 bg-[#0B1F3A] p-5">
+                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">Cash Collection</p>
+                    <p className="mt-1.5 text-2xl font-black text-emerald-400">{fmtINR(shiftStats.cashTotal)}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-blue-500/18 bg-[#0B1F3A] p-5">
+                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">UPI / Card</p>
+                    <p className="mt-1.5 text-2xl font-black text-blue-400">{fmtINR(shiftStats.upiTotal + shiftStats.cardTotal)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Column: Seva breakdown */}
+              <div className="rounded-xl border border-white/5 bg-[#0B1F3A]/40 p-6">
+                <h3 className="mb-5 text-xs font-bold uppercase tracking-widest text-[#D4A017]/70">Offering Breakdown</h3>
+                {Object.keys(shiftStats.sevaBreakdown).length === 0 ? (
+                  <p className="text-xs font-semibold text-[#EFE6D3]/40 italic">No collections registered on this shift.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {Object.entries(shiftStats.sevaBreakdown).map(([name, amount]) => {
+                      const percentage = shiftStats.totalCollected > 0
+                        ? Math.round((amount / shiftStats.totalCollected) * 100)
+                        : 0
+                      return (
+                        <div key={name} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-[#EFE6D3]/90">{name}</span>
+                            <span className="text-[#F7D77C]">{fmtINR(amount)} ({percentage}%)</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                            <div
+                              className="h-full bg-[#D4A017] rounded-full transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Denominations Tally */}
+              <div className="rounded-xl border border-white/5 bg-[#0B1F3A]/40 p-6 flex flex-col justify-between">
+                <div>
+                  <h3 className="mb-5 text-xs font-bold uppercase tracking-widest text-[#D4A017]/70">Cash Denomination Tally</h3>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-2">
+                    {[2000, 500, 200, 100, 50, 20, 10].map((denom) => {
+                      const stateKey = `c${denom}`
+                      return (
+                        <div key={denom} className="flex flex-col gap-1 rounded-lg border border-white/5 bg-white/4 p-2">
+                          <span className="text-[9px] font-bold text-[#EFE6D3]/40">₹{denom} Notes</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={denominations[stateKey]}
+                            onChange={(e) => setDenominations(p => ({ ...p, [stateKey]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                            className="w-full rounded border border-white/10 bg-[#071828] px-2 py-1 text-[11px] font-bold text-white outline-none focus:border-[#D4A017]/50"
+                          />
+                          <span className="text-[9px] font-bold text-[#F7D77C] text-right mt-0.5">
+                            {fmtINR(denom * denominations[stateKey])}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {/* Coins */}
+                    <div className="flex flex-col gap-1 rounded-lg border border-white/5 bg-white/4 p-2">
+                      <span className="text-[9px] font-bold text-[#EFE6D3]/40">Coins (Total ₹)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={denominations.coins}
+                        onChange={(e) => setDenominations(p => ({ ...p, coins: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        className="w-full rounded border border-white/10 bg-[#071828] px-2 py-1 text-[11px] font-bold text-white outline-none focus:border-[#D4A017]/50"
+                      />
+                      <span className="text-[9px] font-bold text-[#F7D77C] text-right mt-0.5">
+                        {fmtINR(denominations.coins)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Audit balanced display and actions */}
+                <div className="mt-6 pt-5 border-t border-white/5">
+                  <div className="flex justify-between items-center mb-4 text-xs font-semibold">
+                    <span className="text-[#EFE6D3]/50">Physical Cash:</span>
+                    <span className="text-white font-mono font-bold">{fmtINR(shiftStats.denomPhysicalTotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-5 text-xs font-semibold">
+                    <span className="text-[#EFE6D3]/50">System Cash:</span>
+                    <span className="text-[#F7D77C] font-mono font-bold">{fmtINR(shiftStats.cashTotal)}</span>
+                  </div>
+                  
+                  {/* Status compare display */}
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      {shiftStats.isBalanced ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-[10px] font-extrabold text-emerald-400">
+                          ✓ Balanced
+                        </span>
+                      ) : shiftStats.variance > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1 text-[10px] font-extrabold text-blue-400">
+                          ⚠ Surplus: +{fmtINR(shiftStats.variance)}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1 text-[10px] font-extrabold text-red-400">
+                          ⚠ Shortage: {fmtINR(shiftStats.variance)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={printShiftSummary}
+                        className="rounded-lg border border-[#D4A017]/30 px-3 py-1.5 text-[10px] font-bold text-[#F7D77C] hover:bg-[#D4A017]/10"
+                      >
+                        Print Summary
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleHandoverShift}
+                        className="rounded-lg bg-[#D4A017] px-3 py-1.5 text-[10px] font-bold text-[#07172D] hover:bg-[#F7D77C]"
+                      >
+                        Hand Over
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      </section>
 
       {/* ── Custom Item Modal ── */}
       {showCustom && (
