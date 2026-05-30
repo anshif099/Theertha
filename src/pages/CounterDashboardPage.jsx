@@ -271,6 +271,11 @@ export default function CounterDashboardPage() {
     window.location.href = '/temple/counter/receipt-preview'
   }
 
+  function handleLogout() {
+    sessionStorage.removeItem('theertha-counter-session')
+    window.location.href = '/temple/counter'
+  }
+
   if (!counterSession) return null
 
   const paymentMethods = ['Cash', 'UPI', 'Card']
