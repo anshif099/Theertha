@@ -13,6 +13,7 @@ import {
   PawPrint,
   PiggyBank,
   ReceiptText,
+  Settings,
   Store,
   UserRoundCheck,
   UsersRound,
@@ -241,7 +242,16 @@ export default function TempleDashboardPage() {
             )
           })}
         </nav>
-        <div className="mt-6 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+          <a
+            href="/temple/settings"
+            className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+          >
+            <Settings size={18} aria-hidden="true" />
+            Settings
+          </a>
+        </div>
+        <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
           <p className="text-sm font-semibold text-[#F7D77C]">
             Temple Access
           </p>
