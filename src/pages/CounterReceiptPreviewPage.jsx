@@ -227,7 +227,11 @@ export default function CounterReceiptPreviewPage() {
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Scan to Verify</p>
               <div className="my-2 border border-gray-300 p-1.5 bg-white">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(receipt.receiptNo)}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                    receipt.id && receipt.templeId && receipt.dbDate
+                      ? `https://theertha-theta.vercel.app/receipt/verify?templeId=${receipt.templeId}&date=${receipt.dbDate}&receiptId=${receipt.id}`
+                      : `https://theertha-theta.vercel.app/receipt/verify?receiptNo=${receipt.receiptNo}`
+                  )}`}
                   alt="Receipt QR Code"
                   className="h-[80px] w-[80px]"
                 />

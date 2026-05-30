@@ -91,9 +91,9 @@ function todayStr() {
 export async function saveReceipt(templeId, receipt) {
   const date = todayStr()
   const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${date}`))
-  const record = { ...receipt, savedAt: new Date().toISOString() }
+  const record = { ...receipt, id: newRef.key, savedAt: new Date().toISOString(), dbDate: date }
   await set(newRef, record)
-  return { id: newRef.key, ...record }
+  return record
 }
 
 /**
@@ -108,5 +108,14 @@ export async function loadTodayReceipts(templeId, dateStr) {
     .filter(([, r]) => r && typeof r === 'object')
     .map(([id, r]) => ({ id, ...r }))
     .sort((a, b) => new Date(a.savedAt || 0) - new Date(b.savedAt || 0))
+}
+
+/**
+ * Load a single receipt from registeredTemples/{templeId}/receipts/{date}/{receiptId}
+ */
+export async function loadSingleReceipt(templeId, dateStr, receiptId) {
+  const snapshot = await get(ref(realtimeDb, `registeredTemples/${templeId}/receipts/${dateStr}/${receiptId}`))
+  if (!snapshot.exists()) return null
+  return snapshot.val()
 }
 
