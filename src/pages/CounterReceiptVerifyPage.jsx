@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, AlertTriangle, ReceiptText, ShieldCheck, Landmark } from 'lucide-react'
+import { CheckCircle, AlertTriangle, ReceiptText, ShieldCheck, Landmark, Download, Printer } from 'lucide-react'
 import { loadSingleReceipt } from '../lib/settingsStore.js'
 
 function fmtINR(n) {
@@ -168,11 +168,83 @@ export default function CounterReceiptVerifyPage() {
                 <p className="text-lg font-black text-[#F7D77C]">{fmtINR(receipt.total)}</p>
               </div>
             </div>
+            {/* Download/Print Action Section */}
+            <div className="no-print flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-[#D4A017]/35 bg-[#D4A017]/10 hover:bg-[#D4A017]/20 px-4 py-3 text-sm font-extrabold text-[#F7D77C] transition cursor-pointer"
+              >
+                <Printer size={16} />
+                Print Receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#D4A017] hover:bg-[#F7D77C] px-4 py-3 text-sm font-extrabold text-[#07172D] transition shadow-md shadow-[#D4A017]/20 cursor-pointer"
+              >
+                <Download size={16} />
+                Download PDF
+              </button>
+            </div>
 
             {/* Computer generated disclaimer */}
             <p className="text-center text-[10px] text-[#EFE6D3]/30 leading-relaxed font-semibold">
               This is a secure, digital pooja receipt verified on the <strong>THEERTHA Platform</strong> database. No physical signatures are required.
             </p>
+
+            {/* Custom Print Stylesheet for High Fidelity Outputs */}
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                /* Hide backdrop elements and action buttons */
+                body {
+                  background: white !important;
+                  color: black !important;
+                }
+                .temple-silhouette, .no-print {
+                  display: none !important;
+                }
+                main {
+                  background: transparent !important;
+                  padding: 0 !important;
+                  min-height: auto !important;
+                }
+                section {
+                  border: none !important;
+                  box-shadow: none !important;
+                  background: white !important;
+                  color: black !important;
+                  max-width: 100% !important;
+                  width: 100% !important;
+                  padding: 0 !important;
+                }
+                /* Typography colour corrections for print readability */
+                .text-white, .text-\\[\\#F8F6F0\\]\\/90 {
+                  color: #0b1f3a !important;
+                }
+                .text-\\[\\#EFE6D3\\]\\/50, .text-\\[\\#EFE6D3\\]\\/40, .text-\\[\\#EFE6D3\\]\\/60, .text-\\[\\#EFE6D3\\]\\/30 {
+                  color: #42516a !important;
+                }
+                .text-\\[\\#F7D77C\\] {
+                  color: #9c7414 !important;
+                }
+                .text-emerald-400 {
+                  color: #11875d !important;
+                }
+                /* Visual box backgrounds and borders */
+                .bg-white\\/5, .bg-\\[\\#0B1F3A\\]\\/40, .bg-white\\/2, .bg-white\\/4, .bg-emerald-500\\/5 {
+                  background-color: #f8f6f0 !important;
+                  border-color: #efe6d3 !important;
+                  color: #0b1f3a !important;
+                }
+                .border-white\\/5, .border-emerald-500\\/10 {
+                  border-color: #efe6d3 !important;
+                }
+                .divide-white\\/5 > * + * {
+                  border-color: #efe6d3 !important;
+                }
+              }
+            ` }} />
 
           </div>
         )}
