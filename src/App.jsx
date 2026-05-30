@@ -6,6 +6,7 @@ import TempleDashboardPage from './pages/TempleDashboardPage.jsx'
 import TempleLoginPage from './pages/TempleLoginPage.jsx'
 import TempleRegistrationPage from './pages/TempleRegistrationPage.jsx'
 import TempleSettingsPage from './pages/TempleSettingsPage.jsx'
+import CounterReceiptPreviewPage from './pages/CounterReceiptPreviewPage.jsx'
 
 function App() {
   if (window.location.pathname.startsWith('/superadmin/temples')) {
@@ -30,6 +31,10 @@ function App() {
 
   if (window.location.pathname === '/temple/counter/dashboard') {
     return <CounterDashboardPage />
+  }
+
+  if (window.location.pathname === '/temple/counter/receipt-preview') {
+    return <CounterReceiptPreviewPage />
   }
 
   if (window.location.pathname.startsWith('/temple')) {

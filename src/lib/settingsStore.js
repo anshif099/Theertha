@@ -76,3 +76,37 @@ export async function getNextReceiptNo(templeId, counterId) {
   const year = new Date().getFullYear()
   return `RC-${year}-${String(newSeq).padStart(6, '0')}`
 }
+
+/* ══════════════════════════════════════════════
+   Receipts  (stored by date for easy daily queries)
+══════════════════════════════════════════════ */
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10) // "2026-05-30"
+}
+
+/**
+ * Save a completed receipt under registeredTemples/{id}/receipts/{date}/{receiptId}
+ */
+export async function saveReceipt(templeId, receipt) {
+  const date = todayStr()
+  const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${date}`))
+  const record = { ...receipt, savedAt: new Date().toISOString() }
+  await set(newRef, record)
+  return { id: newRef.key, ...record }
+}
+
+/**
+ * Load all receipts for a given date (defaults to today).
+ */
+export async function loadTodayReceipts(templeId, dateStr) {
+  const d = dateStr || todayStr()
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${d}`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  return Object.entries(val)
+    .filter(([, r]) => r && typeof r === 'object')
+    .map(([id, r]) => ({ id, ...r }))
+    .sort((a, b) => new Date(a.savedAt || 0) - new Date(b.savedAt || 0))
+}
+

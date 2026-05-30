@@ -12,7 +12,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { getNextReceiptNo, loadQuickItems, loadStars } from '../lib/settingsStore.js'
+import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt } from '../lib/settingsStore.js'
+import { getRegisteredTemple } from '../lib/templeStore.js'
 
 /* ── live clock ── */
 function useClock() {
@@ -134,6 +135,7 @@ export default function CounterDashboardPage() {
   const [stars, setStars] = useState([])
   const [quickItems, setQuickItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [templeData, setTempleData] = useState(null)
 
   /* cart: [{ id, name, amount, qty }] */
   const [cartItems, setCartItems] = useState([])
@@ -158,6 +160,10 @@ export default function CounterDashboardPage() {
     getNextReceiptNo(templeId, counterId)
       .then(setReceiptNo)
       .catch(() => setReceiptNo(`RC-${new Date().getFullYear()}-000001`))
+
+    getRegisteredTemple(templeId)
+      .then(setTempleData)
+      .catch(() => {})
 
     Promise.all([loadStars(templeId), loadQuickItems(templeId)])
       .then(([starsData, itemsData]) => {
@@ -203,6 +209,31 @@ export default function CounterDashboardPage() {
     setCartItems((prev) => [...prev, { ...item, qty: 1 }])
   }
 
+  /* build the receipt payload */
+  function buildReceiptPayload() {
+    const selectedStar = stars.find((s) => s.id === starId)
+    const now = new Date()
+    return {
+      receiptNo,
+      counterId:     counterSession.counterId,
+      counterNo:     counterSession.counterNo,
+      counterName:   counterSession.counterName,
+      templeId:      counterSession.templeId,
+      templeName:    counterSession.templeName,
+      templeContact: templeData?.contact || '',
+      templeDistrict: templeData?.district || '',
+      devoteeName,
+      mobile,
+      starName:      selectedStar?.name || '',
+      remarks,
+      items:         cartItems.map((c) => ({ name: c.name, amount: c.amount, qty: c.qty })),
+      total,
+      paymentMethod,
+      date: now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+      time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    }
+  }
+
   /* new receipt */
   function handleNewReceipt() {
     if (!counterSession) return
@@ -218,13 +249,26 @@ export default function CounterDashboardPage() {
       .catch(() => setReceiptNo(`RC-${new Date().getFullYear()}-000001`))
   }
 
-  function handleLogout() {
-    sessionStorage.removeItem('theertha-counter-session')
-    window.location.href = '/temple/counter'
+  async function handleSaveDraft() {
+    if (cartItems.length === 0) return
+    const data = buildReceiptPayload()
+    try {
+      await saveReceipt(counterSession.templeId, data)
+    } catch (err) {
+      console.warn('Draft save failed:', err)
+    }
   }
 
-  function handlePrint() {
-    window.print()
+  async function handlePrint() {
+    if (cartItems.length === 0) return
+    const data = buildReceiptPayload()
+    try {
+      const saved = await saveReceipt(counterSession.templeId, data)
+      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))
+    } catch {
+      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(data))
+    }
+    window.location.href = '/temple/counter/receipt-preview'
   }
 
   if (!counterSession) return null
@@ -532,6 +576,7 @@ export default function CounterDashboardPage() {
           <button
             type="button"
             className="flex items-center gap-2 rounded-lg border border-[#D4A017]/30 px-4 py-2.5 text-sm font-semibold text-[#F7D77C] transition hover:bg-[#D4A017]/10"
+            onClick={handleSaveDraft}
           >
             <Save size={15} />
             Save draft
@@ -539,7 +584,8 @@ export default function CounterDashboardPage() {
           <button
             type="button"
             onClick={handlePrint}
-            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C]"
+            disabled={cartItems.length === 0}
+            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50"
           >
             <Printer size={15} />
             Print receipt
