@@ -20,7 +20,6 @@ import {
   Settings,
   Store,
   Trash2,
-  User,
   UserRoundCheck,
   UsersRound,
   WalletCards,
@@ -58,6 +57,31 @@ function getInitials(name = 'Temple') {
     .map((part) => part.at(0))
     .join('')
     .toUpperCase()
+}
+
+/**
+ * Auto-generate a counter Login ID from temple name, counter name, counter number.
+ * Format: CTR-{TEMPLE_ABBR}-{NAME_ABBR}{NUM:02d}
+ * Example: CTR-SPT-ME03  (Sree Padmanabha Temple, Main Entrance, counter 3)
+ */
+function generateCounterLoginId(templeName = '', counterName = '', counterNumber = '') {
+  function abbr(text, maxWords) {
+    return text
+      .replace(/[^a-zA-Z\s]/g, '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, maxWords)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+  }
+
+  const templeAbbr = abbr(templeName, 3) || 'TPL'
+  const nameAbbr   = abbr(counterName, 2) || 'CTR'
+  const num        = String(Number(counterNumber) || 0).padStart(2, '0')
+
+  return `CTR-${templeAbbr}-${nameAbbr}${num}`
 }
 
 /* ─── Sidebar content (shared by mobile & desktop) ─── */
@@ -182,13 +206,19 @@ export default function TempleSettingsPage() {
   const [counterError, setCounterError] = useState('')
 
   /* add-counter form */
-  const [form, setForm] = useState({ number: '', name: '', loginId: '' })
+  const [form, setForm] = useState({ number: '', name: '' })
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
 
   const templeName = temple?.name || 'Temple'
-  const initials = useMemo(() => getInitials(templeName), [templeName])
+  const initials    = useMemo(() => getInitials(templeName), [templeName])
+
+  /* auto-generated login id — updates live as user types */
+  const autoLoginId = useMemo(
+    () => generateCounterLoginId(templeName, form.name, form.number),
+    [templeName, form.name, form.number],
+  )
 
   /* redirect if not logged in */
   useEffect(() => {
@@ -227,14 +257,14 @@ export default function TempleSettingsPage() {
     setSuccessMsg('')
   }
 
+
   async function handleAddCounter(e) {
     e.preventDefault()
-    const num = form.number.toString().trim()
+    const num  = form.number.toString().trim()
     const name = form.name.trim()
-    const loginId = form.loginId.trim()
 
-    if (!num || !name || !loginId) {
-      setFormError('All fields are required.')
+    if (!num || !name) {
+      setFormError('Counter number and name are required.')
       return
     }
 
@@ -243,9 +273,7 @@ export default function TempleSettingsPage() {
       return
     }
 
-    const duplicate = counters.find(
-      (c) => String(c.number) === String(num),
-    )
+    const duplicate = counters.find((c) => String(c.number) === String(num))
     if (duplicate) {
       setFormError(`Counter number ${num} already exists.`)
       return
@@ -257,13 +285,13 @@ export default function TempleSettingsPage() {
       const added = await addCounter(session.id, {
         number: Number(num),
         name,
-        loginId,
+        loginId: autoLoginId,
       })
       setCounters((prev) =>
         [...prev, added].sort((a, b) => Number(a.number) - Number(b.number)),
       )
-      setForm({ number: '', name: '', loginId: '' })
-      setSuccessMsg(`Counter ${num} added successfully.`)
+      setForm({ number: '', name: '' })
+      setSuccessMsg(`Counter ${num} added — Login ID: ${autoLoginId}`)
     } catch {
       setFormError('Failed to save counter. Please try again.')
     } finally {
@@ -392,7 +420,7 @@ export default function TempleSettingsPage() {
               </h3>
               <form
                 onSubmit={handleAddCounter}
-                className="grid gap-4 sm:grid-cols-[120px_1fr_1fr_auto]"
+                className="grid gap-4 sm:grid-cols-[120px_1fr_auto]"
               >
                 {/* Counter number */}
                 <div className="grid gap-1.5">
@@ -435,26 +463,6 @@ export default function TempleSettingsPage() {
                   />
                 </div>
 
-                {/* Login ID */}
-                <div className="grid gap-1.5">
-                  <label
-                    htmlFor="counter-login"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]"
-                  >
-                    <User size={13} />
-                    Login ID
-                  </label>
-                  <input
-                    id="counter-login"
-                    type="text"
-                    name="loginId"
-                    value={form.loginId}
-                    onChange={handleFormChange}
-                    placeholder="e.g. CTR-001"
-                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none ring-0 transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
-                  />
-                </div>
-
                 {/* Submit */}
                 <div className="flex items-end">
                   <button
@@ -468,6 +476,19 @@ export default function TempleSettingsPage() {
                   </button>
                 </div>
               </form>
+
+              {/* Auto-generated Login ID preview */}
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#D4A017]/24 bg-[#D4A017]/6 px-4 py-2.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#9C7414]">
+                  Auto Login ID:
+                </span>
+                <span className="font-mono text-sm font-bold text-[#0B1F3A]">
+                  {autoLoginId}
+                </span>
+                <span className="ml-auto rounded-full bg-[#D4A017]/16 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#9C7414]">
+                  Generated
+                </span>
+              </div>
 
               {/* Form feedback */}
               {formError && (
