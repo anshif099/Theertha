@@ -10,6 +10,7 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
+  Menu,
   PawPrint,
   PiggyBank,
   ReceiptText,
@@ -18,6 +19,7 @@ import {
   UserRoundCheck,
   UsersRound,
   WalletCards,
+  X,
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
@@ -149,6 +151,7 @@ export default function TempleDashboardPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
   const [isLoading, setIsLoading] = useState(Boolean(session))
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -193,9 +196,9 @@ export default function TempleDashboardPage() {
     return null
   }
 
-  return (
-    <div className="min-h-screen bg-[#F8F6F0] text-[#0B1F3A]">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
+  function SidebarContent() {
+    return (
+      <>
         <a href="/" aria-label="Back to THEERTHA landing page">
           <BrandMark compact />
         </a>
@@ -211,6 +214,7 @@ export default function TempleDashboardPage() {
               <a
                 key={item.label}
                 href="/temple/dashboard"
+                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
                   isActive
                     ? 'bg-[#D4A017]/14 text-[#F7D77C]'
@@ -234,6 +238,7 @@ export default function TempleDashboardPage() {
               <a
                 key={item.label}
                 href="/temple/dashboard"
+                onClick={() => setSidebarOpen(false)}
                 className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
               >
                 <Icon size={18} aria-hidden="true" />
@@ -245,6 +250,7 @@ export default function TempleDashboardPage() {
         <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
           <a
             href="/temple/settings"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
           >
             <Settings size={18} aria-hidden="true" />
@@ -259,12 +265,62 @@ export default function TempleDashboardPage() {
             {temple?.loginId}
           </p>
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8F6F0] text-[#0B1F3A]">
+
+      {/* ── Mobile sidebar backdrop ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          aria-hidden="true"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile sidebar drawer ── */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] transition-transform duration-300 lg:hidden ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        aria-label="Mobile navigation"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <SidebarContent />
+          </div>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="ml-2 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-[#EFE6D3]/70 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+            aria-label="Close sidebar"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
+        <SidebarContent />
       </aside>
 
       <div className="lg:pl-72">
         <header className="sticky top-0 z-30 border-b border-[#D4A017]/18 bg-[#F8F6F0]/88 px-5 py-4 backdrop-blur-xl sm:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
+          <div className="relative mx-auto flex max-w-7xl flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            {/* Hamburger – mobile only */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="absolute left-4 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-md text-[#0B1F3A] transition hover:bg-[#D4A017]/10 lg:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu size={22} />
+            </button>
+            <div className="pl-12 lg:pl-0">
               <p className="text-sm font-semibold uppercase text-[#9C7414]">
                 Temple Dashboard
               </p>
