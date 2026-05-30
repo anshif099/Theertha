@@ -24,6 +24,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
+import { loadTodayReceipts } from '../lib/settingsStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -43,66 +44,7 @@ const addonItems = [
   { label: 'Store', icon: Store },
   { label: 'Fixed Deposit', icon: PiggyBank },
 ]
-
-const metrics = [
-  {
-    label: "Today's Collection",
-    value: 'INR 84,230',
-    trend: '12% vs yesterday',
-    icon: IndianRupee,
-  },
-  {
-    label: 'Devotees Today',
-    value: '1,247',
-    trend: '8% vs avg',
-    icon: UsersRound,
-  },
-  {
-    label: 'Sevas Booked',
-    value: '38',
-    trend: 'Normal day',
-    icon: CalendarCheck,
-  },
-  {
-    label: 'Rooms Occupied',
-    value: '14/20',
-    trend: '70% occupancy',
-    icon: BedDouble,
-  },
-]
-
-const transactions = [
-  {
-    devotee: 'Rajesh Kumar',
-    type: 'Abhishekam',
-    amount: 'INR 1,100',
-    status: 'Paid',
-  },
-  {
-    devotee: 'Priya Nair',
-    type: 'Membership',
-    amount: 'INR 2,500',
-    status: 'Paid',
-  },
-  {
-    devotee: 'Suresh Menon',
-    type: 'Donation',
-    amount: 'INR 5,000',
-    status: 'Pending',
-  },
-  {
-    devotee: 'Anitha Krishnan',
-    type: 'Pooja',
-    amount: 'INR 750',
-    status: 'Paid',
-  },
-  {
-    devotee: 'Manoj Pillai',
-    type: 'Guest Room',
-    amount: 'INR 1,800',
-    status: 'New',
-  },
-]
+// Real-time dynamic metrics and transactions will be populated from Firebase state in the component.
 
 const poojaSchedule = [
   { time: '5:30 AM', name: 'Nirmalyam', status: 'Done' },
@@ -153,6 +95,9 @@ export default function TempleDashboardPage() {
   const [isLoading, setIsLoading] = useState(Boolean(session))
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const [receipts, setReceipts] = useState([])
+  const [loadingReceipts, setLoadingReceipts] = useState(true)
+
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
 
@@ -182,10 +127,82 @@ export default function TempleDashboardPage() {
         }
       })
 
+    loadTodayReceipts(session.id)
+      .then((data) => {
+        if (isActive) {
+          setReceipts(data)
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load today receipts:', error)
+      })
+      .finally(() => {
+        if (isActive) {
+          setLoadingReceipts(false)
+        }
+      })
+
     return () => {
       isActive = false
     }
   }, [session])
+
+  const metrics = useMemo(() => {
+    const todayTotal = receipts.reduce((sum, r) => sum + Number(r.total || 0), 0)
+    const devoteesTotal = receipts.length
+    const sevasTotal = receipts.reduce((sum, r) => {
+      if (r.items && Array.isArray(r.items)) {
+        return sum + r.items.reduce((s, it) => s + Number(it.qty || 0), 0)
+      }
+      return sum
+    }, 0)
+
+    return [
+      {
+        label: "Today's Collection",
+        value: todayTotal > 0 ? 'INR ' + todayTotal.toLocaleString('en-IN') : 'INR 0',
+        trend: 'Real-time database sync',
+        icon: IndianRupee,
+      },
+      {
+        label: 'Devotees Today',
+        value: devoteesTotal.toLocaleString('en-IN'),
+        trend: `${devoteesTotal} total receipts`,
+        icon: UsersRound,
+      },
+      {
+        label: 'Sevas Booked',
+        value: sevasTotal.toLocaleString('en-IN'),
+        trend: 'Offerings / seva items',
+        icon: CalendarCheck,
+      },
+      {
+        label: 'Rooms Occupied',
+        value: '14/20',
+        trend: '70% occupancy',
+        icon: BedDouble,
+      },
+    ]
+  }, [receipts])
+
+  const transactions = useMemo(() => {
+    const sorted = [...receipts].reverse()
+    const top5 = sorted.slice(0, 5)
+
+    return top5.map((r) => {
+      const itemsList = r.items && Array.isArray(r.items)
+        ? r.items.map((it) => it.name).join(', ')
+        : 'Offering'
+
+      return {
+        id: r.id,
+        devotee: r.devoteeName || 'Anonymous Devotee',
+        type: itemsList || 'General offering',
+        amount: 'INR ' + Number(r.total || 0).toLocaleString('en-IN'),
+        status: 'Paid',
+      }
+    })
+  }, [receipts])
 
   function handleLogout() {
     endTempleSession()
@@ -332,9 +349,9 @@ export default function TempleDashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              {isLoading ? (
-                <span className="rounded-md border border-[#D4A017]/22 bg-white px-3 py-2 text-sm font-semibold text-[#42516A]">
-                  Syncing
+              {isLoading || loadingReceipts ? (
+                <span className="rounded-md border border-[#D4A017]/22 bg-white px-3 py-2 text-sm font-semibold text-[#42516A] animate-pulse">
+                  Syncing...
                 </span>
               ) : null}
               <span className="rounded-md bg-[#D4A017]/16 px-4 py-2 text-sm font-semibold text-[#9C7414]">
@@ -410,31 +427,39 @@ export default function TempleDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((transaction) => (
-                      <tr
-                        key={`${transaction.devotee}-${transaction.type}`}
-                        className="border-b border-[#EFE6D3] transition hover:bg-[#F8F6F0]"
-                      >
-                        <td className="px-5 py-4 font-semibold">
-                          {transaction.devotee}
-                        </td>
-                        <td className="px-5 py-4 text-sm font-semibold text-[#42516A]">
-                          {transaction.type}
-                        </td>
-                        <td className="px-5 py-4 font-semibold">
-                          {transaction.amount}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-md px-3 py-1 text-xs font-bold ring-1 ${transactionStatusClass(
-                              transaction.status,
-                            )}`}
-                          >
-                            {transaction.status}
-                          </span>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-5 py-8 text-center text-sm font-semibold text-[#42516A]/70">
+                          {loadingReceipts ? 'Loading transactions...' : 'No transactions recorded yet today.'}
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      transactions.map((transaction, idx) => (
+                        <tr
+                          key={transaction.id || idx}
+                          className="border-b border-[#EFE6D3] transition hover:bg-[#F8F6F0]"
+                        >
+                          <td className="px-5 py-4 font-semibold">
+                            {transaction.devotee}
+                          </td>
+                          <td className="px-5 py-4 text-sm font-semibold text-[#42516A] truncate max-w-xs" title={transaction.type}>
+                            {transaction.type}
+                          </td>
+                          <td className="px-5 py-4 font-semibold">
+                            {transaction.amount}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span
+                              className={`inline-flex rounded-md px-3 py-1 text-xs font-bold ring-1 ${transactionStatusClass(
+                                transaction.status,
+                              )}`}
+                            >
+                              {transaction.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
