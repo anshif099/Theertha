@@ -1,4 +1,5 @@
 import HomePage from './pages/HomePage.jsx'
+import CounterLoginPage from './pages/CounterLoginPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import TempleDashboardPage from './pages/TempleDashboardPage.jsx'
 import TempleLoginPage from './pages/TempleLoginPage.jsx'
@@ -20,6 +21,10 @@ function App() {
 
   if (window.location.pathname === '/temple/settings') {
     return <TempleSettingsPage />
+  }
+
+  if (window.location.pathname === '/temple/counter') {
+    return <CounterLoginPage />
   }
 
   if (window.location.pathname.startsWith('/temple')) {

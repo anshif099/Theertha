@@ -52,3 +52,35 @@ export async function addCounter(templeId, counter) {
 export async function deleteCounter(templeId, counterId) {
   await remove(counterRef(templeId, counterId))
 }
+
+/**
+ * Find a counter across ALL temples by its loginId.
+ * Returns { counter, templeId } or null if not found.
+ */
+export async function findCounterByLoginId(loginId) {
+  const normalizedId = loginId.trim().toUpperCase()
+  if (!normalizedId) return null
+
+  const snapshot = await get(ref(realtimeDb, 'registeredTemples'))
+  if (!snapshot.exists()) return null
+
+  const temples = snapshot.val()
+
+  for (const [templeId, templeData] of Object.entries(temples)) {
+    const counters = templeData?.counters
+    if (!counters || typeof counters !== 'object') continue
+
+    for (const [counterId, counter] of Object.entries(counters)) {
+      if (counter?.loginId?.toUpperCase() === normalizedId) {
+        return {
+          counter: { id: counterId, ...counter },
+          templeId,
+          templeName: templeData.name || '',
+        }
+      }
+    }
+  }
+
+  return null
+}
+

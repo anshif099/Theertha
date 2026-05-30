@@ -32,7 +32,7 @@ import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
-  { label: 'Counter', icon: ReceiptText, href: '/temple/dashboard' },
+  { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/dashboard' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/dashboard' },
   { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },

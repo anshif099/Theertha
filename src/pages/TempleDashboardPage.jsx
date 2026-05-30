@@ -26,15 +26,15 @@ import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
 const mainMenuItems = [
-  { label: 'Dashboard', icon: LayoutDashboard },
-  { label: 'Counter', icon: ReceiptText },
-  { label: 'Accounts', icon: WalletCards },
-  { label: 'Nadavaravu', icon: ClipboardList },
-  { label: 'Membership', icon: UsersRound },
-  { label: 'Billing', icon: FileText },
-  { label: 'Temple', icon: Landmark },
-  { label: 'Assets', icon: Building2 },
-  { label: 'Devotees', icon: Heart },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
+  { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
+  { label: 'Accounts', icon: WalletCards, href: '/temple/dashboard' },
+  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/dashboard' },
+  { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
+  { label: 'Billing', icon: FileText, href: '/temple/dashboard' },
+  { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
+  { label: 'Assets', icon: Building2, href: '/temple/dashboard' },
+  { label: 'Devotees', icon: Heart, href: '/temple/dashboard' },
 ]
 
 const addonItems = [
@@ -213,7 +213,7 @@ export default function TempleDashboardPage() {
             return (
               <a
                 key={item.label}
-                href="/temple/dashboard"
+                href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
                   isActive
