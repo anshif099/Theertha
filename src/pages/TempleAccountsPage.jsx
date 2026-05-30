@@ -40,7 +40,7 @@ const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
-  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/dashboard' },
+  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },

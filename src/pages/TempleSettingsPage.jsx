@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { addCounter, deleteCounter, loadCounters } from '../lib/counterStore.js'
-import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars } from '../lib/settingsStore.js'
+import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars, loadSlotsConfig, saveSlotsConfig } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
@@ -38,7 +38,7 @@ const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
-  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/dashboard' },
+  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
@@ -230,6 +230,23 @@ export default function TempleSettingsPage() {
   const [qiError, setQiError] = useState('')
   const [qiSuccess, setQiSuccess] = useState('')
 
+  /* pooja slots config state */
+  const [slotsList, setSlotsList] = useState([
+    { key: 'nirmalyam', time: '5:30 AM', name: 'Nirmalyam', priest: 'Rajan Pillai', capacity: 1, status: 'Reserved' },
+    { key: 'ushapooja', time: '6:30 AM', name: 'Usha Pooja', priest: 'Rajan Pillai', capacity: 5, status: 'Booked' },
+    { key: 'abhishekam_default', time: '8:00 AM', name: 'Abhishekam', priest: 'Suresh Varma', capacity: 1, status: 'Booked' },
+    { key: 'pantheeradi_default', time: '10:00 AM', name: 'Pantheeradi Pooja', priest: 'Rajan Pillai', capacity: 10, status: 'Available' },
+    { key: 'uchapooja', time: '12:00 PM', name: 'Ucha Pooja', priest: 'Suresh Varma', capacity: 5, status: 'Limited' },
+    { key: 'sayahna', time: '3:30 PM', name: 'Sayahna', priest: 'Krishnan M.', capacity: 8, status: 'Available' },
+    { key: 'deeparadhana', time: '6:30 PM', name: 'Deeparadhana', priest: 'Rajan Pillai', capacity: 15, status: 'Available' },
+    { key: 'athazhapooja', time: '8:30 PM', name: 'Athazha Pooja', priest: 'Krishnan M.', capacity: 5, status: 'Available' },
+  ])
+  const [loadingSlots, setLoadingSlots] = useState(true)
+  const [slotsSaving, setSlotsSaving] = useState(false)
+  const [slotsSuccess, setSlotsSuccess] = useState('')
+  const [slotsError, setSlotsError] = useState('')
+
+
   /* add-counter form */
   const [form, setForm] = useState({ number: '', name: '' })
   const [formError, setFormError] = useState('')
@@ -276,6 +293,15 @@ export default function TempleSettingsPage() {
       .then((list) => { if (isActive) setQuickItems(list) })
       .catch(() => {})
       .finally(() => { if (isActive) setLoadingQuickItems(false) })
+
+    loadSlotsConfig(session.id)
+      .then((config) => {
+        if (config && Array.isArray(config) && config.length > 0) {
+          if (isActive) setSlotsList(config)
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (isActive) setLoadingSlots(false) })
 
     return () => { isActive = false }
   }, [session])
@@ -392,6 +418,32 @@ export default function TempleSettingsPage() {
       await deleteQuickItem(session.id, itemId)
       setQuickItems((prev) => prev.filter((q) => q.id !== itemId))
     } catch { setQiError('Failed to delete.') }
+  }
+
+  /* ── Pooja Slots handlers ── */
+  function handleSlotChange(idx, field, value) {
+    setSlotsList((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], [field]: value }
+      return next
+    })
+    setSlotsSuccess('')
+    setSlotsError('')
+  }
+
+  async function handleSaveSlotsConfig(e) {
+    e.preventDefault()
+    setSlotsSaving(true)
+    setSlotsError('')
+    setSlotsSuccess('')
+    try {
+      await saveSlotsConfig(session.id, slotsList)
+      setSlotsSuccess('Pooja slot configuration saved successfully!')
+    } catch {
+      setSlotsError('Failed to save pooja slot configuration. Please try again.')
+    } finally {
+      setSlotsSaving(false)
+    }
   }
 
   if (!session) return null
@@ -806,6 +858,101 @@ export default function TempleSettingsPage() {
                 </table>
               )}
             </div>
+          </section>
+
+          {/* ══ Pooja Slot Management Section ══ */}
+          <section className="mt-6 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)] mb-8">
+            <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                  <CalendarCheck size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Pooja Slot Management</h2>
+                  <p className="text-sm text-[#42516A]">Configure daily slots, default capacities, assigned priests, and current booking states</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveSlotsConfig}>
+              <div className="overflow-x-auto">
+                {loadingSlots ? (
+                  <p className="px-6 py-8 text-sm text-[#42516A]">Loading slot configuration…</p>
+                ) : (
+                  <table className="w-full min-w-[700px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-xs font-semibold uppercase tracking-wide text-[#42516A]">
+                        <th className="px-5 py-3">Pooja Name & Time</th>
+                        <th className="px-5 py-3">Capacity</th>
+                        <th className="px-5 py-3">Assigned Priest</th>
+                        <th className="px-5 py-3">Booking Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {slotsList.map((slot, idx) => (
+                        <tr key={slot.key || idx} className="border-b border-[#EFE6D3] hover:bg-[#F8F6F0]/50 transition">
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-[#0B1F3A]">{slot.name}</div>
+                            <div className="text-xs text-[#42516A]">{slot.time}</div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <input
+                              type="number"
+                              min="0"
+                              value={slot.capacity}
+                              onChange={(e) => handleSlotChange(idx, 'capacity', Number(e.target.value))}
+                              className="w-24 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-sm font-semibold text-[#0B1F3A] outline-none transition focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                            />
+                          </td>
+                          <td className="px-5 py-4">
+                            <select
+                              value={slot.priest || 'Rajan Pillai'}
+                              onChange={(e) => handleSlotChange(idx, 'priest', e.target.value)}
+                              className="w-48 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-sm font-semibold text-[#0B1F3A] outline-none transition focus:border-[#D4A017]"
+                            >
+                              <option value="Rajan Pillai">Rajan Pillai</option>
+                              <option value="Suresh Varma">Suresh Varma</option>
+                              <option value="Krishnan M.">Krishnan M.</option>
+                            </select>
+                          </td>
+                          <td className="px-5 py-4">
+                            <select
+                              value={slot.status || 'Available'}
+                              onChange={(e) => handleSlotChange(idx, 'status', e.target.value)}
+                              className={`w-40 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-[#D4A017] ${
+                                slot.status === 'Available' ? 'text-emerald-700 bg-emerald-50/50' :
+                                slot.status === 'Limited' ? 'text-amber-700 bg-amber-50/50' :
+                                slot.status === 'Booked' ? 'text-red-700 bg-red-50/50' :
+                                'text-blue-700 bg-blue-50/50'
+                              }`}
+                            >
+                              <option value="Available" className="text-emerald-700">Available</option>
+                              <option value="Limited" className="text-amber-700">Limited</option>
+                              <option value="Booked" className="text-red-700">Booked</option>
+                              <option value="Reserved" className="text-blue-700">Reserved</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div className="border-t border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex-1">
+                  {slotsSuccess && <div className="text-sm font-semibold text-emerald-700">✓ {slotsSuccess}</div>}
+                  {slotsError && <div className="text-sm font-semibold text-red-700">✗ {slotsError}</div>}
+                </div>
+                <button
+                  type="submit"
+                  disabled={slotsSaving || loadingSlots}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-[#0B1F3A] px-6 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                >
+                  {slotsSaving ? 'Saving slots config…' : 'Save Slot Configuration'}
+                </button>
+              </div>
+            </form>
           </section>
         </main>
       </div>

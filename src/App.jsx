@@ -10,6 +10,9 @@ import CounterReceiptPreviewPage from './pages/CounterReceiptPreviewPage.jsx'
 import CounterReceiptVerifyPage from './pages/CounterReceiptVerifyPage.jsx'
 import TempleBillingPage from './pages/TempleBillingPage.jsx'
 import TempleAccountsPage from './pages/TempleAccountsPage.jsx'
+import TempleNadavaravuPage from './pages/TempleNadavaravuPage.jsx'
+import TempleBookingPage from './pages/TempleBookingPage.jsx'
+
 
 function App() {
   if (window.location.pathname.startsWith('/superadmin/temples')) {
@@ -35,6 +38,16 @@ function App() {
   if (window.location.pathname === '/temple/accounts') {
     return <TempleAccountsPage />
   }
+
+  if (window.location.pathname === '/temple/nadavaravu') {
+    return <TempleNadavaravuPage />
+  }
+
+  if (window.location.pathname === '/temple/booking') {
+    return <TempleBookingPage />
+  }
+
+
 
   if (window.location.pathname === '/temple/counter') {
     return <CounterLoginPage />

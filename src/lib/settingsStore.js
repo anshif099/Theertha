@@ -190,5 +190,33 @@ export async function loadAccountTransactions(templeId) {
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 }
 
+/* ══════════════════════════════════════════════
+   Pooja Status (stored under registeredTemples/{templeId}/poojaStatus/{dateStr})
+   ══════════════════════════════════════════════ */
+
+export async function updatePoojaStatus(templeId, dateStr, poojaKey, status) {
+  const d = dateStr || new Date().toISOString().slice(0, 10)
+  await set(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/poojaStatus/${d}/${poojaKey}`), status)
+}
+
+export async function loadPoojaStatuses(templeId, dateStr) {
+  const d = dateStr || new Date().toISOString().slice(0, 10)
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/poojaStatus/${d}`))
+  if (!snapshot.exists()) return {}
+  return snapshot.val()
+}
+
+export async function saveSlotsConfig(templeId, slots) {
+  await set(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/slotsConfig`), slots)
+}
+
+export async function loadSlotsConfig(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/slotsConfig`))
+  if (!snapshot.exists()) return null
+  return snapshot.val()
+}
+
+
+
 
 

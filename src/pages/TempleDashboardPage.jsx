@@ -24,13 +24,13 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts } from '../lib/settingsStore.js'
+import { loadTodayReceipts, loadPoojaStatuses } from '../lib/settingsStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
-  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/dashboard' },
+  { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
@@ -97,6 +97,7 @@ export default function TempleDashboardPage() {
 
   const [receipts, setReceipts] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(true)
+  const [poojaStatuses, setPoojaStatuses] = useState({})
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -140,6 +141,16 @@ export default function TempleDashboardPage() {
         if (isActive) {
           setLoadingReceipts(false)
         }
+      })
+
+    loadPoojaStatuses(session.id)
+      .then((statuses) => {
+        if (isActive) {
+          setPoojaStatuses(statuses || {})
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load today pooja statuses:', error)
       })
 
     return () => {
@@ -203,6 +214,32 @@ export default function TempleDashboardPage() {
       }
     })
   }, [receipts])
+
+  const dynamicPoojaSchedule = useMemo(() => {
+    const baseList = [
+      { time: '5:30 AM', name: 'Nirmalyam', defaultStatus: 'Done' },
+      { time: '6:30 AM', name: 'Usha Pooja', defaultStatus: 'Done' },
+      { time: '10:00 AM', name: 'Pantheeradi', defaultStatus: 'Now' },
+      { time: '12:00 PM', name: 'Ucha Pooja', defaultStatus: 'Upcoming' },
+      { time: '6:30 PM', name: 'Deeparadhana', defaultStatus: 'Upcoming' },
+      { time: '8:30 PM', name: 'Athazha Pooja', defaultStatus: 'Upcoming' },
+    ]
+
+    return baseList.map((pooja) => {
+      const liveStatus = poojaStatuses[pooja.time] || pooja.defaultStatus
+      let finalStatus = 'Upcoming'
+      if (liveStatus === 'Done') {
+        finalStatus = 'Done'
+      } else if (liveStatus === 'In progress' || liveStatus === 'Live' || liveStatus === 'Now') {
+        finalStatus = 'Now'
+      }
+      return {
+        ...pooja,
+        status: finalStatus,
+      }
+    })
+  }, [poojaStatuses])
+
 
   function handleLogout() {
     endTempleSession()
@@ -475,7 +512,7 @@ export default function TempleDashboardPage() {
                 </span>
               </div>
               <div className="mt-5 grid gap-3">
-                {poojaSchedule.map((pooja) => (
+                {dynamicPoojaSchedule.map((pooja) => (
                   <div
                     key={`${pooja.time}-${pooja.name}`}
                     className={`grid grid-cols-[76px_1fr_auto] items-center gap-3 rounded-md border px-3 py-3 text-sm font-semibold ${scheduleStatusClass(
