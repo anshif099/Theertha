@@ -18,15 +18,19 @@ import {
   PlusCircle,
   ReceiptText,
   Settings,
+  Sparkles,
+  Star,
   Store,
   Trash2,
   UserRoundCheck,
   UsersRound,
   WalletCards,
   X,
+  Zap,
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { addCounter, deleteCounter, loadCounters } from '../lib/counterStore.js'
+import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
@@ -205,6 +209,22 @@ export default function TempleSettingsPage() {
   const [loadingCounters, setLoadingCounters] = useState(true)
   const [counterError, setCounterError] = useState('')
 
+  /* stars state */
+  const [stars, setStars] = useState([])
+  const [loadingStars, setLoadingStars] = useState(true)
+  const [starInput, setStarInput] = useState('')
+  const [starSaving, setStarSaving] = useState(false)
+  const [starError, setStarError] = useState('')
+  const [starSuccess, setStarSuccess] = useState('')
+
+  /* quick items state */
+  const [quickItems, setQuickItems] = useState([])
+  const [loadingQuickItems, setLoadingQuickItems] = useState(true)
+  const [qiForm, setQiForm] = useState({ name: '', amount: '' })
+  const [qiSaving, setQiSaving] = useState(false)
+  const [qiError, setQiError] = useState('')
+  const [qiSuccess, setQiSuccess] = useState('')
+
   /* add-counter form */
   const [form, setForm] = useState({ number: '', name: '' })
   const [formError, setFormError] = useState('')
@@ -241,6 +261,16 @@ export default function TempleSettingsPage() {
       .then((list) => { if (isActive) setCounters(list) })
       .catch(() => { if (isActive) setCounterError('Failed to load counters.') })
       .finally(() => { if (isActive) setLoadingCounters(false) })
+
+    loadStars(session.id)
+      .then((list) => { if (isActive) setStars(list) })
+      .catch(() => {})
+      .finally(() => { if (isActive) setLoadingStars(false) })
+
+    loadQuickItems(session.id)
+      .then((list) => { if (isActive) setQuickItems(list) })
+      .catch(() => {})
+      .finally(() => { if (isActive) setLoadingQuickItems(false) })
 
     return () => { isActive = false }
   }, [session])
@@ -306,6 +336,57 @@ export default function TempleSettingsPage() {
     } catch {
       setCounterError('Failed to delete counter.')
     }
+  }
+
+  /* ── Stars handlers ── */
+  async function handleAddStar(e) {
+    e.preventDefault()
+    const name = starInput.trim()
+    if (!name) { setStarError('Star name is required.'); return }
+    if (stars.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+      setStarError(`"${name}" already exists.`); return
+    }
+    setStarSaving(true); setStarError(''); setStarSuccess('')
+    try {
+      const added = await addStar(session.id, name)
+      setStars((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)))
+      setStarInput('')
+      setStarSuccess(`"${name}" added.`)
+    } catch { setStarError('Failed to save. Try again.') }
+    finally { setStarSaving(false) }
+  }
+
+  async function handleDeleteStar(starId) {
+    try {
+      await deleteStar(session.id, starId)
+      setStars((prev) => prev.filter((s) => s.id !== starId))
+    } catch { setStarError('Failed to delete.') }
+  }
+
+  /* ── Quick Items handlers ── */
+  async function handleAddQuickItem(e) {
+    e.preventDefault()
+    const name = qiForm.name.trim()
+    const amount = Number(qiForm.amount)
+    if (!name || !amount || amount <= 0) { setQiError('Name and a valid amount are required.'); return }
+    if (quickItems.some((q) => q.name.toLowerCase() === name.toLowerCase())) {
+      setQiError(`"${name}" already exists.`); return
+    }
+    setQiSaving(true); setQiError(''); setQiSuccess('')
+    try {
+      const added = await addQuickItem(session.id, { name, amount })
+      setQuickItems((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)))
+      setQiForm({ name: '', amount: '' })
+      setQiSuccess(`"${name}" added.`)
+    } catch { setQiError('Failed to save. Try again.') }
+    finally { setQiSaving(false) }
+  }
+
+  async function handleDeleteQuickItem(itemId) {
+    try {
+      await deleteQuickItem(session.id, itemId)
+      setQuickItems((prev) => prev.filter((q) => q.id !== itemId))
+    } catch { setQiError('Failed to delete.') }
   }
 
   if (!session) return null
@@ -546,6 +627,178 @@ export default function TempleSettingsPage() {
                 <p className="px-6 pb-4 text-sm font-semibold text-red-600">
                   {counterError}
                 </p>
+              )}
+            </div>
+          </section>
+
+          {/* ══ Stars (Nakshatra) Section ══ */}
+          <section className="mt-6 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
+            <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                  <Star size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Stars (Nakshatra)</h2>
+                  <p className="text-sm text-[#42516A]">Add stars that appear in the counter receipt dropdown</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
+                {stars.length} star{stars.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Add star form */}
+            <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-5">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Star</h3>
+              <form onSubmit={handleAddStar} className="flex gap-3">
+                <input
+                  id="star-name-input"
+                  type="text"
+                  value={starInput}
+                  onChange={(e) => { setStarInput(e.target.value); setStarError(''); setStarSuccess('') }}
+                  placeholder="e.g. Karthika"
+                  className="flex-1 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                />
+                <button
+                  type="submit"
+                  disabled={starSaving}
+                  className="flex items-center gap-2 rounded-lg bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                >
+                  <PlusCircle size={15} />
+                  {starSaving ? 'Saving…' : 'Add'}
+                </button>
+              </form>
+              {starError && <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700"><AlertCircle size={14} />{starError}</div>}
+              {starSuccess && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">✓ {starSuccess}</div>}
+            </div>
+
+            {/* Stars list */}
+            <div className="p-6">
+              {loadingStars ? (
+                <p className="text-sm text-[#42516A]">Loading…</p>
+              ) : stars.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <Star size={28} className="text-[#D4A017]/40" />
+                  <p className="text-sm text-[#42516A]">No stars added yet.</p>
+                </div>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                  {stars.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-[#D4A017]/18 bg-[#F8F6F0] px-4 py-2.5">
+                      <span className="text-sm font-semibold text-[#0B1F3A]">{s.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStar(s.id)}
+                        className="ml-3 flex h-7 w-7 items-center justify-center rounded-md text-red-400 transition hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Delete ${s.name}`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ══ Quick Add Items Section ══ */}
+          <section className="mt-6 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
+            <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                  <Zap size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Quick Add Items</h2>
+                  <p className="text-sm text-[#42516A]">Seva / offering buttons shown on the counter receipt screen</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
+                {quickItems.length} item{quickItems.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Add quick item form */}
+            <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-5">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Item</h3>
+              <form onSubmit={handleAddQuickItem} className="grid gap-4 sm:grid-cols-[1fr_160px_auto]">
+                <div className="grid gap-1.5">
+                  <label htmlFor="qi-name" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]"><Sparkles size={12} />Item / Seva Name</label>
+                  <input
+                    id="qi-name"
+                    type="text"
+                    value={qiForm.name}
+                    onChange={(e) => { setQiForm((p) => ({ ...p, name: e.target.value })); setQiError(''); setQiSuccess('') }}
+                    placeholder="e.g. Abhishekam"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="qi-amount" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]"><IndianRupee size={12} />Amount (₹)</label>
+                  <input
+                    id="qi-amount"
+                    type="number"
+                    min="1"
+                    value={qiForm.amount}
+                    onChange={(e) => { setQiForm((p) => ({ ...p, amount: e.target.value })); setQiError(''); setQiSuccess('') }}
+                    placeholder="500"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={qiSaving}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                  >
+                    <PlusCircle size={15} />
+                    {qiSaving ? 'Saving…' : 'Add'}
+                  </button>
+                </div>
+              </form>
+              {qiError && <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700"><AlertCircle size={14} />{qiError}</div>}
+              {qiSuccess && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">✓ {qiSuccess}</div>}
+            </div>
+
+            {/* Quick items list */}
+            <div className="overflow-x-auto">
+              {loadingQuickItems ? (
+                <p className="px-6 py-8 text-sm text-[#42516A]">Loading…</p>
+              ) : quickItems.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <Zap size={28} className="text-[#D4A017]/40" />
+                  <p className="font-semibold text-[#0B1F3A]">No quick items yet</p>
+                  <p className="text-sm text-[#42516A]">Add sevas / offerings above.</p>
+                </div>
+              ) : (
+                <table className="w-full min-w-[420px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-xs font-semibold uppercase tracking-wide text-[#42516A]">
+                      <th className="px-5 py-3">Item / Seva</th>
+                      <th className="px-5 py-3">Amount</th>
+                      <th className="px-5 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quickItems.map((qi) => (
+                      <tr key={qi.id} className="border-b border-[#EFE6D3] hover:bg-[#F8F6F0]">
+                        <td className="px-5 py-3.5 font-semibold">{qi.name}</td>
+                        <td className="px-5 py-3.5 font-semibold text-[#9C7414]">₹{Number(qi.amount).toLocaleString('en-IN')}</td>
+                        <td className="px-5 py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuickItem(qi.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-md text-red-400 transition hover:bg-red-50 hover:text-red-600"
+                            aria-label={`Delete ${qi.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           </section>
