@@ -119,3 +119,76 @@ export async function loadSingleReceipt(templeId, dateStr, receiptId) {
   return snapshot.val()
 }
 
+/* ══════════════════════════════════════════════
+   Expenses (stored under registeredTemples/{templeId}/expenses)
+   ══════════════════════════════════════════════ */
+
+export async function getNextVoucherNo(templeId) {
+  const seqRef = ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/expenseSeq`)
+  let newSeq = 1
+  await runTransaction(seqRef, (current) => {
+    newSeq = (current || 0) + 1
+    return newSeq
+  })
+  const year = new Date().getFullYear()
+  return `EXP-${year}-${String(newSeq).padStart(5, '0')}`
+}
+
+export async function saveExpense(templeId, expense) {
+  const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/expenses`))
+  const record = { ...expense, id: newRef.key, createdAt: new Date().toISOString() }
+  await set(newRef, record)
+  return record
+}
+
+export async function loadExpenses(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/expenses`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  return Object.entries(val)
+    .filter(([, exp]) => exp && typeof exp === 'object')
+    .map(([id, exp]) => ({ id, ...exp }))
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+}
+
+export async function loadAllReceipts(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  const list = []
+  Object.entries(val).forEach(([dateStr, dateObj]) => {
+    if (dateObj && typeof dateObj === 'object') {
+      Object.entries(dateObj).forEach(([id, r]) => {
+        if (r && typeof r === 'object') {
+          list.push({ id, dateStr, ...r })
+        }
+      })
+    }
+  })
+  return list
+}
+
+
+/* ══════════════════════════════════════════════
+   Account Transactions (stored under registeredTemples/{templeId}/accounts)
+   ══════════════════════════════════════════════ */
+
+export async function saveAccountTransaction(templeId, transaction) {
+  const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/accounts`))
+  const record = { ...transaction, id: newRef.key, createdAt: new Date().toISOString() }
+  await set(newRef, record)
+  return record
+}
+
+export async function loadAccountTransactions(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/accounts`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  return Object.entries(val)
+    .filter(([, txn]) => txn && typeof txn === 'object')
+    .map(([id, txn]) => ({ id, ...txn }))
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+}
+
+
+
