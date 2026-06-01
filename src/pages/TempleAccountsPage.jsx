@@ -118,13 +118,46 @@ export default function TempleAccountsPage() {
   const [temple, setTemple] = useState(session)
   const [isLoading, setIsLoading] = useState(Boolean(session))
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
+  
   /* Accounts Data State */
   const [dbReceipts, setDbReceipts] = useState([])
   const [dbExpenses, setDbExpenses] = useState([])
   const [dbTransactions, setDbTransactions] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [showFullLedger, setShowFullLedger] = useState(false)
+
+  /* Date Range Filter State */
+  const [filterType, setFilterType] = useState('Monthly')
+  const [selectedMonth, setSelectedMonth] = useState('2026-06') // June 2026 as default
+  const [selectedYear, setSelectedYear] = useState('2026')
+
+  const monthOptions = useMemo(() => {
+    const options = []
+    const now = new Date() // local time is June 2026
+    for (let i = 0; i < 18; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const val = d.toISOString().slice(0, 7) // YYYY-MM
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      options.push({ val, label })
+    }
+    return options
+  }, [])
+
+  const yearOptions = useMemo(() => {
+    return ['2026', '2025', '2024']
+  }, [])
+
+  const filterLabel = useMemo(() => {
+    if (filterType === 'Monthly') {
+      const [y, m] = selectedMonth.split('-')
+      const date = new Date(Number(y), Number(m) - 1, 1)
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    }
+    if (filterType === 'Yearly') {
+      return selectedYear
+    }
+    return 'Overall'
+  }, [filterType, selectedMonth, selectedYear])
 
   /* Modal Form State */
   const [showAddModal, setShowAddModal] = useState(false)
@@ -157,6 +190,9 @@ export default function TempleAccountsPage() {
       })
       .catch((error) => {
         console.warn('Unable to load temple details:', error)
+        if (isActive) {
+          setTemple(session)
+        }
       })
       .finally(() => {
         if (isActive) {
@@ -196,10 +232,41 @@ export default function TempleAccountsPage() {
       })
   }
 
+  /* Filtered Array Slices strictly by selected view / date ranges */
+  const filteredReceipts = useMemo(() => {
+    return dbReceipts.filter(r => {
+      const dateStr = r.date || r.savedAt?.slice(0, 10)
+      if (!dateStr) return false
+      if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
+      if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
+      return true
+    })
+  }, [dbReceipts, filterType, selectedMonth, selectedYear])
+
+  const filteredExpenses = useMemo(() => {
+    return dbExpenses.filter(e => {
+      const dateStr = e.date
+      if (!dateStr) return false
+      if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
+      if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
+      return true
+    })
+  }, [dbExpenses, filterType, selectedMonth, selectedYear])
+
+  const filteredTransactions = useMemo(() => {
+    return dbTransactions.filter(t => {
+      const dateStr = t.date
+      if (!dateStr) return false
+      if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
+      if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
+      return true
+    })
+  }, [dbTransactions, filterType, selectedMonth, selectedYear])
+
   // Combine real counter receipts, billing expenses, and manual entries
   const ledgerEntries = useMemo(() => {
     // 1. Map real receipts from counter
-    const receiptsFormatted = dbReceipts.map(r => ({
+    const receiptsFormatted = filteredReceipts.map(r => ({
       id: `rcpt-${r.id}`,
       voucherNo: r.receiptNo || 'JV-2026-CTR',
       date: r.date || r.savedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -211,7 +278,7 @@ export default function TempleAccountsPage() {
     }))
 
     // 2. Map real expenses from billing
-    const expensesFormatted = dbExpenses.map(e => {
+    const expensesFormatted = filteredExpenses.map(e => {
       let mappedHead = 'Admin & misc.'
       const cat = e.category || ''
       if (cat.includes('Salary') || cat.includes('Dakshina')) mappedHead = 'Staff salary'
@@ -232,7 +299,7 @@ export default function TempleAccountsPage() {
     })
 
     // 3. Map manually created journal entries
-    const manualFormatted = dbTransactions.map(t => ({
+    const manualFormatted = filteredTransactions.map(t => ({
       id: t.id,
       voucherNo: t.voucherNo,
       date: t.date,
@@ -247,65 +314,65 @@ export default function TempleAccountsPage() {
     const combined = [...receiptsFormatted, ...expensesFormatted, ...manualFormatted]
 
     return combined.sort((a, b) => new Date(b.date) - new Date(a.date))
-  }, [dbReceipts, dbExpenses, dbTransactions])
+  }, [filteredReceipts, filteredExpenses, filteredTransactions])
 
   /* Computations for Dashboard Statistics strictly based on counter receipts and billing expenses */
   const financeStats = useMemo(() => {
     // 1. Income heads calculated entirely from dynamic logs (Strictly real data!)
-    const poojaIncomeTotal = dbReceipts.reduce((sum, r) => sum + Number(r.total || 0), 0) + dbTransactions
+    const poojaIncomeTotal = filteredReceipts.reduce((sum, r) => sum + Number(r.total || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Pooja income' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const donationTotal = dbTransactions
+    const donationTotal = filteredTransactions
       .filter(t => t.head === 'Donation' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const endowmentTotal = dbTransactions
+    const endowmentTotal = filteredTransactions
       .filter(t => t.head === 'Endowment interest' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const membershipTotal = dbTransactions
+    const membershipTotal = filteredTransactions
       .filter(t => t.head === 'Membership fees' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const fixedDepositTotal = dbTransactions
+    const fixedDepositTotal = filteredTransactions
       .filter(t => t.head === 'Fixed Deposits' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const otherTotal = dbTransactions
+    const otherTotal = filteredTransactions
       .filter(t => t.head === 'Other' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
     const totalIncome = poojaIncomeTotal + donationTotal + endowmentTotal + membershipTotal + fixedDepositTotal + otherTotal
 
     // 2. Expense heads calculated entirely from billing expenses (Strictly real data!)
-    const staffSalaryTotal = dbExpenses
+    const staffSalaryTotal = filteredExpenses
       .filter(e => e.category?.includes('Salary') || e.category?.includes('Dakshina'))
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + dbTransactions
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Staff salary' && t.type === 'Debit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const poojaMaterialsTotal = dbExpenses
+    const poojaMaterialsTotal = filteredExpenses
       .filter(e => e.category?.includes('Materials') || e.category?.includes('Flowers'))
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + dbTransactions
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Pooja materials' && t.type === 'Debit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const maintenanceTotal = dbExpenses
+    const maintenanceTotal = filteredExpenses
       .filter(e => e.category?.includes('Maintenance'))
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + dbTransactions
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Maintenance' && t.type === 'Debit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const utilitiesTotal = dbExpenses
+    const utilitiesTotal = filteredExpenses
       .filter(e => e.category?.includes('Utilities') || e.category?.includes('Electricity'))
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + dbTransactions
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Electricity & utilities' && t.type === 'Debit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const adminMiscTotal = dbExpenses
+    const adminMiscTotal = filteredExpenses
       .filter(e => e.category?.includes('Administrative') || e.category?.includes('Others'))
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + dbTransactions
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Admin & misc.' && t.type === 'Debit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
@@ -341,7 +408,7 @@ export default function TempleAccountsPage() {
       canaraBalance,
       postOfficeBalance,
     }
-  }, [dbReceipts, dbExpenses, dbTransactions])
+  }, [filteredReceipts, filteredExpenses, filteredTransactions])
 
   async function handleAddEntry(e) {
     e.preventDefault()
@@ -517,10 +584,42 @@ export default function TempleAccountsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <select className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017]">
-                <option value="May 2026" className="bg-[#141519] text-white">May 2026</option>
-                <option value="April 2026" className="bg-[#141519] text-white">April 2026</option>
+              {/* View Type Toggle */}
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)}
+                className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-white cursor-pointer"
+              >
+                <option value="Monthly" className="bg-[#141519] text-white">Monthly View</option>
+                <option value="Yearly" className="bg-[#141519] text-white">Yearly View</option>
+                <option value="Overall" className="bg-[#141519] text-white">Overall View</option>
               </select>
+
+              {/* Conditional Month Dropdown */}
+              {filterType === 'Monthly' && (
+                <select 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-white cursor-pointer"
+                >
+                  {monthOptions.map(opt => (
+                    <option key={opt.val} value={opt.val} className="bg-[#141519] text-white">{opt.label}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Conditional Year Dropdown */}
+              {filterType === 'Yearly' && (
+                <select 
+                  value={selectedYear} 
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-white cursor-pointer"
+                >
+                  {yearOptions.map(yr => (
+                    <option key={yr} value={yr} className="bg-[#141519] text-white">{yr}</option>
+                  ))}
+                </select>
+              )}
 
               <button className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 transition">
                 <Download size={14} />
@@ -547,30 +646,27 @@ export default function TempleAccountsPage() {
             <article className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl flex flex-col justify-between">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#EFE6D3]/40 flex items-center justify-between">
-                  <span>Total income — May</span>
-                  <span className="text-emerald-400 text-xs">14% ↑</span>
+                  <span>Total income — {filterLabel}</span>
                 </p>
                 <p className="font-display mt-3 text-3xl font-black text-emerald-400">{fmtINR(financeStats.totalIncome)}</p>
               </div>
-              <p className="mt-4 text-[11px] font-bold text-emerald-400/80">↑ 14% vs April</p>
+              <p className="mt-4 text-[11px] font-bold text-emerald-400/80">Synced live with DB</p>
             </article>
 
             <article className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl flex flex-col justify-between">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#EFE6D3]/40 flex items-center justify-between">
-                  <span>Total expenses — May</span>
-                  <span className="text-red-400 text-xs">3% ↓</span>
+                  <span>Total expenses — {filterLabel}</span>
                 </p>
                 <p className="font-display mt-3 text-3xl font-black text-red-400">{fmtINR(financeStats.totalExpenses)}</p>
               </div>
-              <p className="mt-4 text-[11px] font-bold text-red-400/80">↓ 3% vs April</p>
+              <p className="mt-4 text-[11px] font-bold text-red-400/80">Synced live with DB</p>
             </article>
 
             <article className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl flex flex-col justify-between">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#EFE6D3]/40 flex items-center justify-between">
-                  <span>Net surplus — May</span>
-                  <span className="text-emerald-400 text-xs">49.9%</span>
+                  <span>Net surplus — {filterLabel}</span>
                 </p>
                 <p className="font-display mt-3 text-3xl font-black text-[#F8F6F0]">{fmtINR(financeStats.netSurplus)}</p>
               </div>
@@ -595,7 +691,7 @@ export default function TempleAccountsPage() {
             {/* Income breakdown */}
             <article className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl">
               <h3 className="text-xs font-black uppercase tracking-widest text-[#EFE6D3]/40 border-b border-white/5 pb-3 mb-4">
-                INCOME BY HEAD — MAY 2026
+                INCOME BY HEAD — {filterLabel.toUpperCase()}
               </h3>
               <div className="space-y-4">
                 {[
@@ -641,7 +737,7 @@ export default function TempleAccountsPage() {
             {/* Expense breakdown */}
             <article className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl">
               <h3 className="text-xs font-black uppercase tracking-widest text-[#EFE6D3]/40 border-b border-white/5 pb-3 mb-4">
-                EXPENSE BY HEAD — MAY 2026
+                EXPENSE BY HEAD — {filterLabel.toUpperCase()}
               </h3>
               <div className="space-y-4">
                 {[
