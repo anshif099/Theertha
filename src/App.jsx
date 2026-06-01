@@ -14,6 +14,7 @@ import TempleNadavaravuPage from './pages/TempleNadavaravuPage.jsx'
 import TempleBookingPage from './pages/TempleBookingPage.jsx'
 import TempleAssetsPage from './pages/TempleAssetsPage.jsx'
 import TempleAssetRegisterPage from './pages/TempleAssetRegisterPage.jsx'
+import UnderDevelopmentPage from './pages/UnderDevelopmentPage.jsx'
 
 
 function App() {
@@ -58,6 +59,10 @@ function App() {
   }
 
 
+
+  if (window.location.pathname === '/temple/under-development') {
+    return <UnderDevelopmentPage />
+  }
 
   if (window.location.pathname === '/temple/counter') {
     return <CounterLoginPage />

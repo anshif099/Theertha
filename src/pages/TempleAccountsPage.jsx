@@ -41,18 +41,18 @@ const mainMenuItems = [
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
-  { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
+  { label: 'Membership', icon: UsersRound, href: '/temple/under-development?f=membership' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
-  { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
+  { label: 'Temple', icon: Landmark, href: '/temple/under-development?f=temple' },
   { label: 'Assets', icon: Building2, href: '/temple/dashboard' },
-  { label: 'Devotees', icon: Heart, href: '/temple/dashboard' },
+  { label: 'Devotees', icon: Heart, href: '/temple/under-development?f=devotees' },
 ]
 
 const addonItems = [
-  { label: 'Elephant', icon: PawPrint, href: '/temple/dashboard' },
-  { label: 'Guest House', icon: BedDouble, href: '/temple/dashboard' },
-  { label: 'Store', icon: Store, href: '/temple/dashboard' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/dashboard' },
+  { label: 'Elephant', icon: PawPrint, href: '/temple/under-development?f=elephant' },
+  { label: 'Guest House', icon: BedDouble, href: '/temple/under-development?f=guest-house' },
+  { label: 'Store', icon: Store, href: '/temple/under-development?f=store' },
+  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/under-development?f=fixed-deposit' },
 ]
 
 // Mock baseline ledger transactions to pre-populate and look beautiful

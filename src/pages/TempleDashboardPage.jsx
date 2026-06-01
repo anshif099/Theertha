@@ -31,18 +31,18 @@ const mainMenuItems = [
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
-  { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
+  { label: 'Membership', icon: UsersRound, href: '/temple/under-development?f=membership' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
-  { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
+  { label: 'Temple', icon: Landmark, href: '/temple/under-development?f=temple' },
   { label: 'Assets', icon: Building2, href: '/temple/assets' },
-  { label: 'Devotees', icon: Heart, href: '/temple/dashboard' },
+  { label: 'Devotees', icon: Heart, href: '/temple/under-development?f=devotees' },
 ]
 
 const addonItems = [
-  { label: 'Elephant', icon: PawPrint },
-  { label: 'Guest House', icon: BedDouble },
-  { label: 'Store', icon: Store },
-  { label: 'Fixed Deposit', icon: PiggyBank },
+  { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
+  { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
+  { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
+  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/under-development?f=fixed-deposit' },
 ]
 // Real-time dynamic metrics and transactions will be populated from Firebase state in the component.
 
@@ -291,7 +291,7 @@ export default function TempleDashboardPage() {
             return (
               <a
                 key={item.label}
-                href="/temple/dashboard"
+                href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
               >
