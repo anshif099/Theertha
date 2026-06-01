@@ -34,7 +34,7 @@ const mainMenuItems = [
   { label: 'Membership', icon: UsersRound, href: '/temple/dashboard' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/dashboard' },
-  { label: 'Assets', icon: Building2, href: '/temple/dashboard' },
+  { label: 'Assets', icon: Building2, href: '/temple/assets' },
   { label: 'Devotees', icon: Heart, href: '/temple/dashboard' },
 ]
 

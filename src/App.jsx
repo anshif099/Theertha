@@ -12,6 +12,8 @@ import TempleBillingPage from './pages/TempleBillingPage.jsx'
 import TempleAccountsPage from './pages/TempleAccountsPage.jsx'
 import TempleNadavaravuPage from './pages/TempleNadavaravuPage.jsx'
 import TempleBookingPage from './pages/TempleBookingPage.jsx'
+import TempleAssetsPage from './pages/TempleAssetsPage.jsx'
+import TempleAssetRegisterPage from './pages/TempleAssetRegisterPage.jsx'
 
 
 function App() {
@@ -45,6 +47,14 @@ function App() {
 
   if (window.location.pathname === '/temple/booking') {
     return <TempleBookingPage />
+  }
+
+  if (window.location.pathname === '/temple/assets/register') {
+    return <TempleAssetRegisterPage />
+  }
+
+  if (window.location.pathname === '/temple/assets') {
+    return <TempleAssetsPage />
   }
 
 
