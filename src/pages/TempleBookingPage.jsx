@@ -50,7 +50,7 @@ const addonItems = [
   { label: 'Elephant', icon: PawPrint, href: '/temple/under-development?f=elephant' },
   { label: 'Guest House', icon: BedDouble, href: '/temple/under-development?f=guest-house' },
   { label: 'Store', icon: Store, href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/under-development?f=fixed-deposit' },
+  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
 ]
 
 const SEVAS = [

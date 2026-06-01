@@ -52,7 +52,7 @@ const addonItems = [
   { label: 'Elephant', icon: PawPrint, href: '/temple/under-development?f=elephant' },
   { label: 'Guest House', icon: BedDouble, href: '/temple/under-development?f=guest-house' },
   { label: 'Store', icon: Store, href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/under-development?f=fixed-deposit' },
+  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
 ]
 
 // Mock baseline ledger transactions to pre-populate and look beautiful
@@ -268,11 +268,15 @@ export default function TempleAccountsPage() {
       .filter(t => t.head === 'Membership fees' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
+    const fixedDepositTotal = dbTransactions
+      .filter(t => t.head === 'Fixed Deposits' && t.type === 'Credit')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0)
+
     const otherTotal = dbTransactions
       .filter(t => t.head === 'Other' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
-    const totalIncome = poojaIncomeTotal + donationTotal + endowmentTotal + membershipTotal + otherTotal
+    const totalIncome = poojaIncomeTotal + donationTotal + endowmentTotal + membershipTotal + fixedDepositTotal + otherTotal
 
     // 2. Expense heads calculated entirely from billing expenses (Strictly real data!)
     const staffSalaryTotal = dbExpenses
@@ -322,6 +326,7 @@ export default function TempleAccountsPage() {
       donationTotal,
       endowmentTotal,
       membershipTotal,
+      fixedDepositTotal,
       otherTotal,
       totalExpenses,
       staffSalaryTotal,
@@ -598,6 +603,7 @@ export default function TempleAccountsPage() {
                   ['Donation', financeStats.donationTotal, 'bg-emerald-500'],
                   ['Endowment interest', financeStats.endowmentTotal, 'bg-blue-500'],
                   ['Membership fees', financeStats.membershipTotal, 'bg-blue-500'],
+                  ['Fixed Deposits', financeStats.fixedDepositTotal, 'bg-indigo-500'],
                   ['Other', financeStats.otherTotal, 'bg-gray-500'],
                 ].filter(([, amt]) => Number(amt) > 0).length === 0 ? (
                   <p className="text-center text-xs font-semibold text-[#EFE6D3]/40 py-8">
@@ -609,6 +615,7 @@ export default function TempleAccountsPage() {
                     ['Donation', financeStats.donationTotal, 'bg-emerald-500'],
                     ['Endowment interest', financeStats.endowmentTotal, 'bg-blue-500'],
                     ['Membership fees', financeStats.membershipTotal, 'bg-blue-500'],
+                    ['Fixed Deposits', financeStats.fixedDepositTotal, 'bg-indigo-500'],
                     ['Other', financeStats.otherTotal, 'bg-gray-500'],
                   ]
                     .filter(([, amt]) => Number(amt) > 0)

@@ -25,6 +25,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadTodayReceipts, loadPoojaStatuses } from '../lib/settingsStore.js'
+import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -42,7 +43,7 @@ const addonItems = [
   { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
   { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
   { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/under-development?f=fixed-deposit' },
+  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
 ]
 // Real-time dynamic metrics and transactions will be populated from Firebase state in the component.
 
@@ -98,6 +99,7 @@ export default function TempleDashboardPage() {
   const [receipts, setReceipts] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(true)
   const [poojaStatuses, setPoojaStatuses] = useState({})
+  const [totalFD, setTotalFD] = useState(0)
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -141,6 +143,17 @@ export default function TempleDashboardPage() {
         if (isActive) {
           setLoadingReceipts(false)
         }
+      })
+
+    loadFixedDeposits(session.id)
+      .then((data) => {
+        if (isActive) {
+          const sum = data.reduce((total, d) => total + Number(d.amount || 0), 0)
+          setTotalFD(sum)
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load fixed deposits:', error)
       })
 
     loadPoojaStatuses(session.id)
@@ -188,13 +201,13 @@ export default function TempleDashboardPage() {
         icon: CalendarCheck,
       },
       {
-        label: 'Rooms Occupied',
-        value: '14/20',
-        trend: '70% occupancy',
-        icon: BedDouble,
+        label: 'Fixed Deposits',
+        value: totalFD > 0 ? 'INR ' + totalFD.toLocaleString('en-IN') : 'INR 0',
+        trend: 'Active deposit portfolio',
+        icon: PiggyBank,
       },
     ]
-  }, [receipts])
+  }, [receipts, totalFD])
 
   const transactions = useMemo(() => {
     const sorted = [...receipts].reverse()

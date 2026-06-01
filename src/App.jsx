@@ -18,9 +18,13 @@ import UnderDevelopmentPage from './pages/UnderDevelopmentPage.jsx'
 import TempleProfilePage from './pages/TempleProfilePage.jsx'
 import TempleMembershipPage from './pages/TempleMembershipPage.jsx'
 import TempleDevoteesPage from './pages/TempleDevoteesPage.jsx'
+import TempleFixedDepositPage from './pages/TempleFixedDepositPage.jsx'
 
 
 function App() {
+  if (window.location.pathname === '/temple/fixed-deposit') {
+    return <TempleFixedDepositPage />
+  }
   if (window.location.pathname === '/temple/devotees') {
     return <TempleDevoteesPage />
   }
