@@ -236,30 +236,6 @@ export default function UnderDevelopmentPage() {
                 Go to Settings
               </a>
             </div>
-
-            {/* Other available modules */}
-            <div className="mt-14">
-              <p className="mb-5 text-xs font-bold uppercase tracking-widest text-[#9C7414]">Available Modules</p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                  { label: 'Counter',    icon: ReceiptText, href: '/temple/counter' },
-                  { label: 'Accounts',   icon: WalletCards, href: '/temple/accounts' },
-                  { label: 'Billing',    icon: FileText,    href: '/temple/billing' },
-                  { label: 'Assets',     icon: Building2,   href: '/temple/assets' },
-                ].map((mod) => {
-                  const ModIcon = mod.icon
-                  return (
-                    <a key={mod.label} href={mod.href}
-                      className="flex flex-col items-center gap-2 rounded-xl border border-[#D4A017]/18 bg-white p-4 text-sm font-semibold text-[#0B1F3A] shadow-[0_4px_12px_rgba(11,31,58,0.06)] transition hover:border-[#D4A017]/40 hover:bg-[#FFFBF0] hover:-translate-y-0.5">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
-                        <ModIcon size={18} />
-                      </span>
-                      {mod.label}
-                    </a>
-                  )
-                })}
-              </div>
-            </div>
           </div>
         </main>
       </div>

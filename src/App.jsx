@@ -30,6 +30,10 @@ function App() {
     return <TempleLoginPage />
   }
 
+  if (window.location.pathname === '/temple/under-development') {
+    return <UnderDevelopmentPage />
+  }
+
   if (window.location.pathname === '/temple/settings') {
     return <TempleSettingsPage />
   }
@@ -58,12 +62,6 @@ function App() {
     return <TempleAssetsPage />
   }
 
-
-
-  if (window.location.pathname === '/temple/under-development') {
-    return <UnderDevelopmentPage />
-  }
-
   if (window.location.pathname === '/temple/counter') {
     return <CounterLoginPage />
   }
@@ -80,7 +78,7 @@ function App() {
     return <CounterReceiptVerifyPage />
   }
 
-  if (window.location.pathname.startsWith('/temple')) {
+  if (window.location.pathname === '/temple/dashboard' || window.location.pathname === '/temple') {
     return <TempleDashboardPage />
   }
 
