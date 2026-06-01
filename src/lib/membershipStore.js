@@ -64,3 +64,13 @@ export async function registerMembership(templeId, { devoteeName, address, mobil
 
   return { id: newRef.key, ...record }
 }
+
+export async function loadSingleMembership(templeId, memberId) {
+  const snap = await get(ref(realtimeDb, `${DB}/${templeId}/memberships/${memberId}`))
+  if (!snap.exists()) return null
+  return { id: memberId, ...snap.val() }
+}
+
+export async function updateMembership(templeId, memberId, record) {
+  await set(ref(realtimeDb, `${DB}/${templeId}/memberships/${memberId}`), record)
+}

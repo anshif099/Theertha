@@ -27,7 +27,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadMembershipConfig, registerMembership, loadMemberships } from '../lib/membershipStore.js'
+import { loadMembershipConfig, registerMembership, loadMemberships, loadSingleMembership, updateMembership } from '../lib/membershipStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -38,7 +38,7 @@ const mainMenuItems = [
   { label: 'Billing',    icon: FileText,        href: '/temple/billing' },
   { label: 'Temple',     icon: Landmark,        href: '/temple/profile' },
   { label: 'Assets',     icon: Building2,       href: '/temple/assets' },
-  { label: 'Devotees',   icon: Heart,           href: '/temple/under-development?f=devotees' },
+  { label: 'Devotees',   icon: Heart,           href: '/temple/devotees' },
 ]
 
 const addonItems = [
