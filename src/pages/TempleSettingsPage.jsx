@@ -12,8 +12,10 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Menu,
   PawPrint,
+  Phone,
   PiggyBank,
   PlusCircle,
   ReceiptText,
@@ -30,7 +32,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { addCounter, deleteCounter, loadCounters } from '../lib/counterStore.js'
-import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars, loadSlotsConfig, saveSlotsConfig } from '../lib/settingsStore.js'
+import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars, loadSlotsConfig, saveSlotsConfig, addPriest, deletePriest, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 
@@ -230,6 +232,14 @@ export default function TempleSettingsPage() {
   const [qiError, setQiError] = useState('')
   const [qiSuccess, setQiSuccess] = useState('')
 
+  /* priests state */
+  const [priests, setPriests] = useState([])
+  const [loadingPriests, setLoadingPriests] = useState(true)
+  const [priestForm, setPriestForm] = useState({ name: '', salary: '', phone: '', address: '' })
+  const [priestSaving, setPriestSaving] = useState(false)
+  const [priestError, setPriestError] = useState('')
+  const [priestSuccess, setPriestSuccess] = useState('')
+
   /* pooja slots config state */
   const [slotsList, setSlotsList] = useState([
     { key: 'nirmalyam', time: '5:30 AM', name: 'Nirmalyam', priest: 'Rajan Pillai', capacity: 1, status: 'Reserved' },
@@ -293,6 +303,11 @@ export default function TempleSettingsPage() {
       .then((list) => { if (isActive) setQuickItems(list) })
       .catch(() => {})
       .finally(() => { if (isActive) setLoadingQuickItems(false) })
+
+    loadPriests(session.id)
+      .then((list) => { if (isActive) setPriests(list) })
+      .catch(() => {})
+      .finally(() => { if (isActive) setLoadingPriests(false) })
 
     loadSlotsConfig(session.id)
       .then((config) => {
@@ -418,6 +433,34 @@ export default function TempleSettingsPage() {
       await deleteQuickItem(session.id, itemId)
       setQuickItems((prev) => prev.filter((q) => q.id !== itemId))
     } catch { setQiError('Failed to delete.') }
+  }
+
+  /* ── Priest handlers ── */
+  async function handleAddPriest(e) {
+    e.preventDefault()
+    const name = priestForm.name.trim()
+    const salary = Number(priestForm.salary)
+    const phone = priestForm.phone.trim()
+    const address = priestForm.address.trim()
+    if (!name) { setPriestError('Priest name is required.'); return }
+    if (priests.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      setPriestError(`"${name}" already exists.`); return
+    }
+    setPriestSaving(true); setPriestError(''); setPriestSuccess('')
+    try {
+      const added = await addPriest(session.id, { name, salary, phone, address })
+      setPriests((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)))
+      setPriestForm({ name: '', salary: '', phone: '', address: '' })
+      setPriestSuccess(`"${name}" added successfully.`)
+    } catch { setPriestError('Failed to save. Try again.') }
+    finally { setPriestSaving(false) }
+  }
+
+  async function handleDeletePriest(priestId) {
+    try {
+      await deletePriest(session.id, priestId)
+      setPriests((prev) => prev.filter((p) => p.id !== priestId))
+    } catch { setPriestError('Failed to delete.') }
   }
 
   /* ── Pooja Slots handlers ── */
@@ -906,13 +949,14 @@ export default function TempleSettingsPage() {
                           </td>
                           <td className="px-5 py-4">
                             <select
-                              value={slot.priest || 'Rajan Pillai'}
+                              value={slot.priest || ''}
                               onChange={(e) => handleSlotChange(idx, 'priest', e.target.value)}
                               className="w-48 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-sm font-semibold text-[#0B1F3A] outline-none transition focus:border-[#D4A017]"
                             >
-                              <option value="Rajan Pillai">Rajan Pillai</option>
-                              <option value="Suresh Varma">Suresh Varma</option>
-                              <option value="Krishnan M.">Krishnan M.</option>
+                              <option value="">— Select Priest —</option>
+                              {priests.map((p) => (
+                                <option key={p.id} value={p.name}>{p.name}</option>
+                              ))}
                             </select>
                           </td>
                           <td className="px-5 py-4">
@@ -953,6 +997,164 @@ export default function TempleSettingsPage() {
                 </button>
               </div>
             </form>
+          </section>
+
+          {/* ══ Priest Management Section ══ */}
+          <section className="mt-6 mb-8 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
+            <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                  <UsersRound size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Priest Management</h2>
+                  <p className="text-sm text-[#42516A]">Register priests with their salary, contact, and address details</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
+                {priests.length} priest{priests.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Add priest form */}
+            <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-5">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Priest</h3>
+              <form onSubmit={handleAddPriest} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {/* Name */}
+                <div className="grid gap-1.5">
+                  <label htmlFor="priest-name" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                    <UserRoundCheck size={13} /> Priest Name
+                  </label>
+                  <input
+                    id="priest-name"
+                    type="text"
+                    value={priestForm.name}
+                    onChange={(e) => { setPriestForm((p) => ({ ...p, name: e.target.value })); setPriestError(''); setPriestSuccess('') }}
+                    placeholder="e.g. Rajan Pillai"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                {/* Salary */}
+                <div className="grid gap-1.5">
+                  <label htmlFor="priest-salary" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                    <IndianRupee size={13} /> Monthly Salary (₹)
+                  </label>
+                  <input
+                    id="priest-salary"
+                    type="number"
+                    min="0"
+                    value={priestForm.salary}
+                    onChange={(e) => { setPriestForm((p) => ({ ...p, salary: e.target.value })); setPriestError(''); setPriestSuccess('') }}
+                    placeholder="e.g. 25000"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                {/* Phone */}
+                <div className="grid gap-1.5">
+                  <label htmlFor="priest-phone" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                    <Phone size={13} /> Phone Number
+                  </label>
+                  <input
+                    id="priest-phone"
+                    type="tel"
+                    value={priestForm.phone}
+                    onChange={(e) => { setPriestForm((p) => ({ ...p, phone: e.target.value })); setPriestError(''); setPriestSuccess('') }}
+                    placeholder="e.g. 9876543210"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                {/* Address */}
+                <div className="grid gap-1.5">
+                  <label htmlFor="priest-address" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                    <MapPin size={13} /> Address
+                  </label>
+                  <input
+                    id="priest-address"
+                    type="text"
+                    value={priestForm.address}
+                    onChange={(e) => { setPriestForm((p) => ({ ...p, address: e.target.value })); setPriestError(''); setPriestSuccess('') }}
+                    placeholder="e.g. Thiruvananthapuram"
+                    className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  />
+                </div>
+                {/* Submit spanning full row */}
+                <div className="sm:col-span-2 xl:col-span-4 flex justify-end">
+                  <button
+                    id="add-priest-btn"
+                    type="submit"
+                    disabled={priestSaving}
+                    className="flex items-center gap-2 rounded-lg bg-[#0B1F3A] px-6 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                  >
+                    <PlusCircle size={15} />
+                    {priestSaving ? 'Saving…' : 'Add Priest'}
+                  </button>
+                </div>
+              </form>
+              {priestError && <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700"><AlertCircle size={14} />{priestError}</div>}
+              {priestSuccess && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">✓ {priestSuccess}</div>}
+            </div>
+
+            {/* Priests table */}
+            <div className="overflow-x-auto">
+              {loadingPriests ? (
+                <p className="px-6 py-8 text-sm text-[#42516A]">Loading priests…</p>
+              ) : priests.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <UsersRound size={28} className="text-[#D4A017]/40" />
+                  <p className="font-semibold text-[#0B1F3A]">No priests registered yet</p>
+                  <p className="text-sm text-[#42516A]">Add priest details using the form above.</p>
+                </div>
+              ) : (
+                <table className="w-full min-w-[640px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-xs font-semibold uppercase tracking-wide text-[#42516A]">
+                      <th className="px-5 py-3">Name</th>
+                      <th className="px-5 py-3">Monthly Salary</th>
+                      <th className="px-5 py-3">Phone</th>
+                      <th className="px-5 py-3">Address</th>
+                      <th className="px-5 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priests.map((p) => (
+                      <tr key={p.id} className="border-b border-[#EFE6D3] transition hover:bg-[#F8F6F0]">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0B1F3A] text-xs font-bold text-[#F7D77C]">
+                              {p.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="font-semibold text-[#0B1F3A]">{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-[#9C7414]">
+                          {p.salary ? `₹${Number(p.salary).toLocaleString('en-IN')}` : '—'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {p.phone ? (
+                            <a href={`tel:${p.phone}`} className="flex items-center gap-1.5 text-sm font-semibold text-[#42516A] hover:text-[#0B1F3A]">
+                              <Phone size={13} />{p.phone}
+                            </a>
+                          ) : <span className="text-[#42516A]/50">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5 text-sm text-[#42516A]">
+                          {p.address || '—'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePriest(p.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-md text-red-400 transition hover:bg-red-50 hover:text-red-600"
+                            aria-label={`Delete ${p.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </section>
         </main>
       </div>

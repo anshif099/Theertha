@@ -216,6 +216,37 @@ export async function loadSlotsConfig(templeId) {
   return snapshot.val()
 }
 
+/* ══════════════════════════════════════════════
+   Priests
+══════════════════════════════════════════════ */
+
+export async function loadPriests(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/priests`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  return Object.entries(val)
+    .filter(([, p]) => p && typeof p === 'object')
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export async function addPriest(templeId, { name, salary, phone, address }) {
+  const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/priests`))
+  const record = {
+    name: name.trim(),
+    salary: Number(salary) || 0,
+    phone: phone.trim(),
+    address: address.trim(),
+    createdAt: new Date().toISOString(),
+  }
+  await set(newRef, record)
+  return { id: newRef.key, ...record }
+}
+
+export async function deletePriest(templeId, priestId) {
+  await remove(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/priests/${priestId}`))
+}
+
 
 
 
