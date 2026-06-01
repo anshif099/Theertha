@@ -136,7 +136,9 @@ export default function TempleAccountsPage() {
     const now = new Date() // local time is June 2026
     for (let i = 0; i < 18; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const val = d.toISOString().slice(0, 7) // YYYY-MM
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const val = `${y}-${m}`
       const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
       options.push({ val, label })
     }
@@ -150,7 +152,7 @@ export default function TempleAccountsPage() {
   const filterLabel = useMemo(() => {
     if (filterType === 'Monthly') {
       const [y, m] = selectedMonth.split('-')
-      const date = new Date(Number(y), Number(m) - 1, 1)
+      const date = new Date(Number(y), Number(m) - 1, 1, 12, 0, 0)
       return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     }
     if (filterType === 'Yearly') {
