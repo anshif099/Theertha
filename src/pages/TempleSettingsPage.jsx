@@ -35,13 +35,14 @@ import { addCounter, deleteCounter, loadCounters } from '../lib/counterStore.js'
 import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loadStars, loadSlotsConfig, saveSlotsConfig, addPriest, deletePriest, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
+import { loadMembershipConfig, saveMembershipConfig } from '../lib/membershipStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
-  { label: 'Membership', icon: UsersRound, href: '/temple/under-development?f=membership' },
+  { label: 'Membership', icon: UsersRound, href: '/temple/membership' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/profile' },
   { label: 'Assets', icon: Building2, href: '/temple/assets' },
@@ -256,6 +257,13 @@ export default function TempleSettingsPage() {
   const [slotsSuccess, setSlotsSuccess] = useState('')
   const [slotsError, setSlotsError] = useState('')
 
+  /* membership config state */
+  const [membershipForm, setMembershipForm] = useState({ monthlyAmount: '', yearlyAmount: '' })
+  const [loadingMembership, setLoadingMembership] = useState(true)
+  const [membershipSaving, setMembershipSaving] = useState(false)
+  const [membershipSuccess, setMembershipSuccess] = useState('')
+  const [membershipError, setMembershipError] = useState('')
+
 
   /* add-counter form */
   const [form, setForm] = useState({ number: '', name: '' })
@@ -317,6 +325,18 @@ export default function TempleSettingsPage() {
       })
       .catch(() => {})
       .finally(() => { if (isActive) setLoadingSlots(false) })
+
+    loadMembershipConfig(session.id)
+      .then((cfg) => {
+        if (isActive) {
+          setMembershipForm({
+            monthlyAmount: cfg.monthlyAmount.toString(),
+            yearlyAmount: cfg.yearlyAmount.toString(),
+          })
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (isActive) setLoadingMembership(false) })
 
     return () => { isActive = false }
   }, [session])
@@ -486,6 +506,27 @@ export default function TempleSettingsPage() {
       setSlotsError('Failed to save pooja slot configuration. Please try again.')
     } finally {
       setSlotsSaving(false)
+    }
+  }
+
+  async function handleSaveMembershipConfig(e) {
+    e.preventDefault()
+    const monthly = Number(membershipForm.monthlyAmount)
+    const yearly = Number(membershipForm.yearlyAmount)
+    if (isNaN(monthly) || monthly <= 0 || isNaN(yearly) || yearly <= 0) {
+      setMembershipError('Amounts must be positive numbers.')
+      return
+    }
+    setMembershipSaving(true)
+    setMembershipError('')
+    setMembershipSuccess('')
+    try {
+      await saveMembershipConfig(session.id, { monthlyAmount: monthly, yearlyAmount: yearly })
+      setMembershipSuccess('Membership pricing saved successfully!')
+    } catch {
+      setMembershipError('Failed to save membership plan pricing. Try again.')
+    } finally {
+      setMembershipSaving(false)
     }
   }
 
@@ -1153,6 +1194,86 @@ export default function TempleSettingsPage() {
                     ))}
                   </tbody>
                 </table>
+              )}
+            </div>
+          </section>
+
+          {/* ══ Membership Pricing Management Section ══ */}
+          <section className="mt-6 mb-8 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
+            <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                  <UsersRound size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Membership Management</h2>
+                  <p className="text-sm text-[#42516A]">Configure Monthly and Yearly plan pricing for devotees</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5">
+              {loadingMembership ? (
+                <p className="py-4 text-sm text-[#42516A]">Loading membership details…</p>
+              ) : (
+                <form onSubmit={handleSaveMembershipConfig} className="grid gap-5">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Monthly Amount */}
+                    <div className="grid gap-1.5">
+                      <label htmlFor="monthly-amount" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                        <IndianRupee size={13} /> Monthly Plan Amount (₹)
+                      </label>
+                      <input
+                        id="monthly-amount"
+                        type="number"
+                        min="1"
+                        value={membershipForm.monthlyAmount}
+                        onChange={(e) => {
+                          setMembershipForm((prev) => ({ ...prev, monthlyAmount: e.target.value }))
+                          setMembershipError('')
+                          setMembershipSuccess('')
+                        }}
+                        placeholder="e.g. 120"
+                        className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                        required
+                      />
+                    </div>
+                    {/* Yearly Amount */}
+                    <div className="grid gap-1.5">
+                      <label htmlFor="yearly-amount" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                        <IndianRupee size={13} /> Yearly Plan Amount (₹)
+                      </label>
+                      <input
+                        id="yearly-amount"
+                        type="number"
+                        min="1"
+                        value={membershipForm.yearlyAmount}
+                        onChange={(e) => {
+                          setMembershipForm((prev) => ({ ...prev, yearlyAmount: e.target.value }))
+                          setMembershipError('')
+                          setMembershipSuccess('')
+                        }}
+                        placeholder="e.g. 1200"
+                        className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#EFE6D3] pt-4 mt-2">
+                    <div className="flex-1">
+                      {membershipSuccess && <div className="text-sm font-semibold text-emerald-700">✓ {membershipSuccess}</div>}
+                      {membershipError && <div className="text-sm font-semibold text-red-700">✗ {membershipError}</div>}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={membershipSaving}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-[#0B1F3A] px-6 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                    >
+                      {membershipSaving ? 'Saving…' : 'Save Pricing'}
+                    </button>
+                  </div>
+                </form>
               )}
             </div>
           </section>

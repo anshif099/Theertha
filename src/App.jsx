@@ -16,9 +16,13 @@ import TempleAssetsPage from './pages/TempleAssetsPage.jsx'
 import TempleAssetRegisterPage from './pages/TempleAssetRegisterPage.jsx'
 import UnderDevelopmentPage from './pages/UnderDevelopmentPage.jsx'
 import TempleProfilePage from './pages/TempleProfilePage.jsx'
+import TempleMembershipPage from './pages/TempleMembershipPage.jsx'
 
 
 function App() {
+  if (window.location.pathname === '/temple/membership') {
+    return <TempleMembershipPage />
+  }
   if (window.location.pathname === '/temple/profile') {
     return <TempleProfilePage />
   }
