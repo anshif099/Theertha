@@ -15,9 +15,13 @@ import TempleBookingPage from './pages/TempleBookingPage.jsx'
 import TempleAssetsPage from './pages/TempleAssetsPage.jsx'
 import TempleAssetRegisterPage from './pages/TempleAssetRegisterPage.jsx'
 import UnderDevelopmentPage from './pages/UnderDevelopmentPage.jsx'
+import TempleProfilePage from './pages/TempleProfilePage.jsx'
 
 
 function App() {
+  if (window.location.pathname === '/temple/profile') {
+    return <TempleProfilePage />
+  }
   if (window.location.pathname.startsWith('/superadmin/temples')) {
     return <TempleRegistrationPage />
   }

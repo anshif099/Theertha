@@ -36,8 +36,8 @@ const mainMenuItems = [
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/under-development?f=membership' },
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
-  { label: 'Temple', icon: Landmark, href: '/temple/under-development?f=temple' },
-  { label: 'Assets', icon: Building2, href: '/temple/dashboard' },
+  { label: 'Temple', icon: Landmark, href: '/temple/profile' },
+  { label: 'Assets', icon: Building2, href: '/temple/assets' },
   { label: 'Devotees', icon: Heart, href: '/temple/under-development?f=devotees' },
 ]
 
