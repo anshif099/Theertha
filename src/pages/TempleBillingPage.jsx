@@ -38,7 +38,7 @@ const mainMenuItems = [
   { label: 'Billing', icon: FileText, href: '/temple/billing' },
   { label: 'Temple', icon: Landmark, href: '/temple/profile' },
   { label: 'Assets', icon: Building2, href: '/temple/assets' },
-  { label: 'Devotees', icon: Heart, href: '/temple/under-development?f=devotees' },
+  { label: 'Devotees', icon: Heart, href: '/temple/devotees' },
 ]
 
 const addonItems = [

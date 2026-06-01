@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   PawPrint,
-  Phone,
   PiggyBank,
   PlusCircle,
   ReceiptText,
@@ -27,7 +26,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadMembershipConfig, registerMembership, loadMemberships, loadSingleMembership, updateMembership } from '../lib/membershipStore.js'
+import { loadMembershipConfig, registerMembership, loadSingleMembership, updateMembership } from '../lib/membershipStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -50,11 +49,6 @@ const addonItems = [
 
 function getInitials(name = 'Temple') {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p.at(0)).join('').toUpperCase()
-}
-
-function fmtDate(s) {
-  if (!s) return '—'
-  return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function SidebarContent({ temple, onClose }) {
@@ -105,10 +99,10 @@ export default function TempleMembershipPage() {
   const [temple, setTemple] = useState(session)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Config & Members list
+  // Config & Edit state
   const [config, setConfig] = useState({ monthlyAmount: 120, yearlyAmount: 1200 })
-  const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [editId, setEditId] = useState(null)
 
   // Form state
   const [form, setForm] = useState({ devoteeName: '', address: '', mobile: '', plan: 'Monthly', amount: '120' })
@@ -118,37 +112,50 @@ export default function TempleMembershipPage() {
 
   const initials = useMemo(() => getInitials(temple?.name || 'Temple'), [temple])
 
-  // Load configuration & memberships
+  // Load configuration
   useEffect(() => {
     if (!session) { window.location.href = '/temple-login'; return }
     
     getRegisteredTemple(session.id).then((t) => { if (t) setTemple(t) }).catch(() => {})
     
-    Promise.all([
-      loadMembershipConfig(session.id),
-      loadMemberships(session.id)
-    ])
-      .then(([cfg, list]) => {
+    loadMembershipConfig(session.id)
+      .then((cfg) => {
         setConfig(cfg)
-        setMembers(list)
-        // Set initial form amount based on config
-        setForm((prev) => ({ ...prev, amount: cfg.monthlyAmount.toString() }))
+        
+        // Check if editing
+        const params = new URLSearchParams(window.location.search)
+        const id = params.get('edit')
+        if (id) {
+          setEditId(id)
+          loadSingleMembership(session.id, id).then((m) => {
+            if (m) {
+              setForm({
+                devoteeName: m.devoteeName || '',
+                address: m.address || '',
+                mobile: m.mobile || '',
+                plan: m.plan || 'Monthly',
+                amount: (m.amount || '').toString()
+              })
+            }
+          })
+        } else {
+          // Set initial form amount based on config
+          setForm((prev) => ({ ...prev, amount: cfg.monthlyAmount.toString() }))
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [session])
 
-  // Automatically update form amount when plan selection changes
-  useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      amount: prev.plan === 'Monthly' ? config.monthlyAmount.toString() : config.yearlyAmount.toString()
-    }))
-  }, [form.plan, config])
-
   function handleFormChange(e) {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((prev) => {
+      const nextForm = { ...prev, [name]: value }
+      if (name === 'plan') {
+        nextForm.amount = value === 'Monthly' ? config.monthlyAmount.toString() : config.yearlyAmount.toString()
+      }
+      return nextForm
+    })
     setError('')
     setSuccess('')
   }
@@ -170,25 +177,40 @@ export default function TempleMembershipPage() {
     setSuccess('')
 
     try {
-      const added = await registerMembership(session.id, {
-        devoteeName: name,
-        address: addr,
-        mobile: mob,
-        plan: form.plan,
-        amount: amt,
-      })
-
-      setMembers((prev) => [added, ...prev])
-      setForm((prev) => ({
-        devoteeName: '',
-        address: '',
-        mobile: '',
-        plan: prev.plan,
-        amount: prev.amount
-      }))
-      setSuccess(`Member "${name}" registered successfully! Fee logged in Accounts.`)
+      if (editId) {
+        await updateMembership(session.id, editId, {
+          devoteeName: name,
+          address: addr,
+          mobile: mob,
+          plan: form.plan,
+          amount: amt,
+        })
+        setSuccess(`Membership for devotee "${name}" updated successfully!`)
+        setTimeout(() => {
+          window.location.href = '/temple/devotees'
+        }, 1500)
+      } else {
+        await registerMembership(session.id, {
+          devoteeName: name,
+          address: addr,
+          mobile: mob,
+          plan: form.plan,
+          amount: amt,
+        })
+        setForm({
+          devoteeName: '',
+          address: '',
+          mobile: '',
+          plan: 'Monthly',
+          amount: config.monthlyAmount.toString()
+        })
+        setSuccess(`Member Devotee "${name}" registered successfully! Fee logged in Accounts.`)
+        setTimeout(() => {
+          window.location.href = '/temple/devotees'
+        }, 1500)
+      }
     } catch {
-      setError('Failed to register member. Please try again.')
+      setError('Failed to save member devotee. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -233,7 +255,7 @@ export default function TempleMembershipPage() {
                 <UsersRound size={15} />
                 <a href="/temple/dashboard" className="hover:text-[#0B1F3A] transition">Dashboard</a>
                 <span className="text-[#9C7414]/40">/</span>
-                <span className="text-[#0B1F3A]">Membership Management</span>
+                <span className="text-[#0B1F3A]">{editId ? 'Update Membership' : 'Membership Form'}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -246,164 +268,116 @@ export default function TempleMembershipPage() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 space-y-8">
-          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            
-            {/* ── LEFT PANEL: Form ── */}
-            <section className="rounded-2xl border border-[#D4A017]/18 bg-white p-6 shadow-[0_16px_48px_rgba(11,31,58,0.08)] flex flex-col h-fit">
-              <div className="flex items-center gap-3 border-b border-[#EFE6D3] pb-4 mb-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
-                  <UsersRound size={20} />
-                </span>
-                <div>
-                  <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Register New Member</h2>
-                  <p className="text-xs text-[#42516A]">Enter devotee details and select a subscription plan</p>
-                </div>
+        <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
+          
+          {/* Centered Form */}
+          <section className="rounded-2xl border border-[#D4A017]/18 bg-white p-6 shadow-[0_16px_48px_rgba(11,31,58,0.08)] flex flex-col h-fit">
+            <div className="flex items-center gap-3 border-b border-[#EFE6D3] pb-4 mb-6">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                <UsersRound size={20} />
+              </span>
+              <div>
+                <h2 className="font-display text-xl font-bold text-[#0B1F3A]">
+                  {editId ? 'Update Devotee Membership' : 'Register New Devotee Member'}
+                </h2>
+                <p className="text-xs text-[#42516A]">
+                  {editId ? 'Update details of this membership subscription' : 'Enter devotee details and select a subscription plan'}
+                </p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                ✗ {error}
+              </div>
+            )}
+            {success && (
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                ✓ {success}
+              </div>
+            )}
+
+            <form onSubmit={handleRegisterMember} className="grid gap-5">
+              <div>
+                <label htmlFor="devoteeName" className={labelCls}>Devotee Name *</label>
+                <input
+                  id="devoteeName"
+                  name="devoteeName"
+                  type="text"
+                  required
+                  value={form.devoteeName}
+                  onChange={handleFormChange}
+                  placeholder="e.g. Gopinathan Pillai"
+                  className={inputCls}
+                />
               </div>
 
-              {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                  ✗ {error}
-                </div>
-              )}
-              {success && (
-                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  ✓ {success}
-                </div>
-              )}
+              <div>
+                <label htmlFor="address" className={labelCls}>Devotee Address *</label>
+                <textarea
+                  id="address"
+                  name="address"
+                  required
+                  rows={3}
+                  value={form.address}
+                  onChange={handleFormChange}
+                  placeholder="Full residential address…"
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
 
-              <form onSubmit={handleRegisterMember} className="grid gap-5">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="devoteeName" className={labelCls}>Devotee Name *</label>
+                  <label htmlFor="mobile" className={labelCls}>Mobile Number *</label>
                   <input
-                    id="devoteeName"
-                    name="devoteeName"
-                    type="text"
+                    id="mobile"
+                    name="mobile"
+                    type="tel"
                     required
-                    value={form.devoteeName}
+                    value={form.mobile}
                     onChange={handleFormChange}
-                    placeholder="e.g. Gopinathan Pillai"
+                    placeholder="e.g. 9876543210"
                     className={inputCls}
                   />
                 </div>
-
                 <div>
-                  <label htmlFor="address" className={labelCls}>Devotee Address *</label>
-                  <textarea
-                    id="address"
-                    name="address"
-                    required
-                    rows={2}
-                    value={form.address}
+                  <label htmlFor="plan" className={labelCls}>Plan Type *</label>
+                  <select
+                    id="plan"
+                    name="plan"
+                    value={form.plan}
                     onChange={handleFormChange}
-                    placeholder="Full residential address…"
-                    className={`${inputCls} resize-none`}
-                  />
+                    className={inputCls}
+                  >
+                    <option value="Monthly">Monthly Plan (₹{config.monthlyAmount}/mo)</option>
+                    <option value="Yearly">Yearly Plan (₹{config.yearlyAmount}/yr)</option>
+                  </select>
                 </div>
+              </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="mobile" className={labelCls}>Mobile Number *</label>
-                    <input
-                      id="mobile"
-                      name="mobile"
-                      type="tel"
-                      required
-                      value={form.mobile}
-                      onChange={handleFormChange}
-                      placeholder="e.g. 9876543210"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="plan" className={labelCls}>Plan Type *</label>
-                    <select
-                      id="plan"
-                      name="plan"
-                      value={form.plan}
-                      onChange={handleFormChange}
-                      className={inputCls}
-                    >
-                      <option value="Monthly">Monthly Plan (₹{config.monthlyAmount}/mo)</option>
-                      <option value="Yearly">Yearly Plan (₹{config.yearlyAmount}/yr)</option>
-                    </select>
-                  </div>
+              <div>
+                <label className={labelCls}>Subscription Amount (₹) — Auto Populate</label>
+                <div className="flex items-center rounded-lg border border-[#D4A017]/30 bg-[#F8F6F0] px-4 py-3 text-base font-extrabold text-[#9C7414]">
+                  <IndianRupee size={16} className="mr-1.5 shrink-0" />
+                  {Number(form.amount).toLocaleString('en-IN')}
                 </div>
+              </div>
 
-                <div>
-                  <label className={labelCls}>Subscription Amount (₹) — Auto Populate</label>
-                  <div className="flex items-center rounded-lg border border-[#D4A017]/30 bg-[#F8F6F0] px-4 py-3 text-base font-extrabold text-[#9C7414]">
-                    <IndianRupee size={16} className="mr-1.5 shrink-0" />
-                    {Number(form.amount).toLocaleString('en-IN')}
-                  </div>
-                </div>
-
+              <div className="flex gap-4 pt-2">
+                <a href="/temple/devotees" className="w-1/3 flex items-center justify-center gap-1.5 rounded-lg border border-[#D4A017]/30 bg-white text-center text-sm font-bold text-[#9C7414] hover:bg-[#D4A017]/8 transition py-3">
+                  <ArrowLeft size={15} /> Roster
+                </a>
                 <button
                   type="submit"
                   disabled={saving || loading}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B1F3A] py-3 text-sm font-bold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
+                  className="w-2/3 flex items-center justify-center gap-2 rounded-lg bg-[#0B1F3A] py-3 text-sm font-bold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
                 >
-                  <PlusCircle size={16} />
-                  {saving ? 'Registering…' : 'Register Member & Log Fee'}
+                  <CheckCircle2 size={16} />
+                  {saving ? 'Saving…' : editId ? 'Update Member & Save' : 'Register Member & Log Fee'}
                 </button>
-              </form>
-            </section>
-
-            {/* ── RIGHT PANEL: Members List ── */}
-            <section className="rounded-2xl border border-[#D4A017]/18 bg-white shadow-[0_16px_48px_rgba(11,31,58,0.08)] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
-                <div>
-                  <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Registered Members</h2>
-                  <p className="text-xs text-[#42516A]">List of active temple membership subscribers</p>
-                </div>
-                <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
-                  {members.length} total
-                </span>
               </div>
-
-              <div className="flex-grow overflow-y-auto max-h-[560px]">
-                {loading ? (
-                  <p className="p-6 text-center text-sm text-[#42516A]">Loading members logs…</p>
-                ) : members.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                    <UsersRound size={36} className="text-[#D4A017]/30" />
-                    <p className="font-semibold text-[#0B1F3A]">No registered members yet</p>
-                    <p className="text-xs text-[#42516A]/80">Register a devotee using the form on the left.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#EFE6D3]">
-                    {members.map((member) => (
-                      <div key={member.id} className="group p-5 flex items-start gap-4 transition hover:bg-[#F8F6F0]/60">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4A017]/10 text-sm font-bold text-[#9C7414]">
-                          {member.devoteeName[0]?.toUpperCase() || 'M'}
-                        </span>
-                        <div className="min-w-0 flex-grow">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h3 className="font-semibold text-[#0B1F3A] truncate">{member.devoteeName}</h3>
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${member.plan === 'Yearly' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'}`}>
-                              {member.plan}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs leading-relaxed text-[#42516A]">{member.address}</p>
-                          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[#9C7414] font-semibold">
-                            <span className="flex items-center gap-1">
-                              <Phone size={12} />
-                              {member.mobile}
-                            </span>
-                            <span className="text-[#EFE6D3]">•</span>
-                            <span>Fee: ₹{Number(member.amount).toLocaleString('en-IN')}</span>
-                            <span className="text-[#EFE6D3]">•</span>
-                            <span className="text-[#42516A]/70">Joined: {fmtDate(member.joinedAt)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-          </div>
+            </form>
+          </section>
         </main>
       </div>
     </div>

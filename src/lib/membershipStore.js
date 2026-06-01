@@ -71,6 +71,21 @@ export async function loadSingleMembership(templeId, memberId) {
   return { id: memberId, ...snap.val() }
 }
 
-export async function updateMembership(templeId, memberId, record) {
+export async function updateMembership(templeId, memberId, { devoteeName, address, mobile, plan, amount }) {
+  const joinedAt = new Date().toISOString()
+  const record = {
+    devoteeName: devoteeName.trim(),
+    address: address.trim(),
+    mobile: mobile.trim(),
+    plan,
+    amount: Number(amount),
+    joinedAt,
+    status: 'Active'
+  }
   await set(ref(realtimeDb, `${DB}/${templeId}/memberships/${memberId}`), record)
+  return { id: memberId, ...record }
+}
+
+export async function deleteMembership(templeId, memberId) {
+  await remove(ref(realtimeDb, `${DB}/${templeId}/memberships/${memberId}`))
 }

@@ -4,8 +4,8 @@ import {
   BedDouble,
   Building2,
   CalendarCheck,
+  CheckCircle2,
   ClipboardList,
-  Edit,
   Eye,
   FileText,
   Heart,
@@ -15,11 +15,14 @@ import {
   LogOut,
   Menu,
   PawPrint,
+  Pencil,
   Phone,
   PiggyBank,
+  PlusCircle,
   ReceiptText,
   Settings,
   Store,
+  Trash2,
   UsersRound,
   WalletCards,
   X,
@@ -27,7 +30,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadMemberships } from '../lib/membershipStore.js'
+import { loadMemberships, deleteMembership } from '../lib/membershipStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -105,44 +108,50 @@ export default function TempleDevoteesPage() {
   const [temple, setTemple] = useState(session)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Devotees / Members list
+  // Devotees/Members list
   const [devotees, setDevotees] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedDevotee, setSelectedDevotee] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [search, setSearch] = useState('')
+
+  // View details modal
+  const [activeDevotee, setActiveDevotee] = useState(null)
 
   const initials = useMemo(() => getInitials(temple?.name || 'Temple'), [temple])
 
-  // Load configuration & memberships (devotees)
-  useEffect(() => {
-    if (!session) { window.location.href = '/temple-login'; return }
-    
-    getRegisteredTemple(session.id).then((t) => { if (t) setTemple(t) }).catch(() => {})
-    
+  function refreshDevoteesList() {
+    if (!session) return
+    setLoading(true)
     loadMemberships(session.id)
-      .then((list) => {
-        setDevotees(list)
-        if (list.length > 0) {
-          setSelectedDevotee(list[0]) // Select first by default
-        }
-      })
+      .then((list) => setDevotees(list))
       .catch(() => {})
       .finally(() => setLoading(false))
+  }
+
+  // Load members
+  useEffect(() => {
+    if (!session) { window.location.href = '/temple-login'; return }
+    getRegisteredTemple(session.id).then((t) => { if (t) setTemple(t) }).catch(() => {})
+    refreshDevoteesList()
   }, [session])
 
-  // Search filter
+  // Filter devotees list
   const filteredDevotees = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase()
+    const q = search.trim().toLowerCase()
     if (!q) return devotees
     return devotees.filter((d) =>
-      d.devoteeName.toLowerCase().includes(q) ||
-      d.mobile.includes(q) ||
-      (d.address || '').toLowerCase().includes(q)
+      [d.devoteeName, d.mobile, d.address, d.plan].join(' ').toLowerCase().includes(q)
     )
-  }, [devotees, searchTerm])
+  }, [devotees, search])
 
-  function handleEditRedirect(memberId) {
-    window.location.href = `/temple/membership?edit=${memberId}`
+  // Delete handler
+  async function handleDeleteDevotee(id, name) {
+    if (!window.confirm(`Are you sure you want to delete membership record for "${name}"?`)) return
+    try {
+      await deleteMembership(session.id, id)
+      setDevotees((prev) => prev.filter((d) => d.id !== id))
+    } catch {
+      alert('Failed to delete devotee record. Please try again.')
+    }
   }
 
   if (!session) return null
@@ -181,7 +190,7 @@ export default function TempleDevoteesPage() {
                 <Heart size={15} />
                 <a href="/temple/dashboard" className="hover:text-[#0B1F3A] transition">Dashboard</a>
                 <span className="text-[#9C7414]/40">/</span>
-                <span className="text-[#0B1F3A]">Devotee Database (Members)</span>
+                <span className="text-[#0B1F3A]">Devotee Roster</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -194,171 +203,191 @@ export default function TempleDevoteesPage() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 space-y-8">
+        <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 space-y-6">
           
-          {/* Main layout split */}
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          {/* Table section */}
+          <section className="rounded-2xl border border-[#D4A017]/18 bg-white shadow-[0_16px_48px_rgba(11,31,58,0.08)] overflow-hidden">
             
-            {/* ── LEFT PANEL: Devotees List ── */}
-            <section className="rounded-2xl border border-[#D4A017]/18 bg-white shadow-[0_16px_48px_rgba(11,31,58,0.08)] overflow-hidden flex flex-col h-[650px]">
-              
-              {/* Header with Search */}
-              <div className="p-5 border-b border-[#EFE6D3] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Devotee Directory</h2>
-                  <p className="text-xs text-[#42516A]">Total registered members active in database</p>
-                </div>
-                {/* Search box */}
+            {/* Table header bar with search */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
+              <div>
+                <h1 className="font-display text-2xl font-bold text-[#0B1F3A]">Devotee Members Roster</h1>
+                <p className="text-xs text-[#42516A]">View and manage all registered devotee members</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                 <input
                   type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="🔍 Search by name or phone…"
-                  className="w-full sm:w-64 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-xs font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#9A9A9A] focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]/20"
+                  placeholder="Search devotees…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="rounded-lg border border-[#D4A017]/30 bg-[#F8F6F0]/50 px-3 py-2 text-xs font-semibold text-[#0B1F3A] outline-none placeholder:text-[#9A9A9A] focus:border-[#D4A017] w-full sm:w-60"
                 />
+                <a href="/temple/membership" className="flex items-center justify-center gap-1.5 rounded-lg bg-[#0B1F3A] px-4 py-2 text-xs font-bold text-[#F8F6F0] hover:bg-[#123761] transition w-full sm:w-auto">
+                  <PlusCircle size={14} /> Register Devotee
+                </a>
               </div>
+            </div>
 
-              {/* Devotees roster list */}
-              <div className="flex-grow overflow-y-auto">
-                {loading ? (
-                  <p className="p-6 text-center text-sm text-[#42516A]">Syncing devotee records…</p>
-                ) : filteredDevotees.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                    <Heart size={36} className="text-[#D4A017]/30" />
-                    <p className="font-semibold text-[#0B1F3A]">No devotees found</p>
-                    <p className="text-xs text-[#42516A]/80">Register a new member to see them in the database.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#EFE6D3]">
-                    {filteredDevotees.map((devotee) => {
-                      const isSelected = selectedDevotee?.id === devotee.id
-                      return (
-                        <div
-                          key={devotee.id}
-                          onClick={() => setSelectedDevotee(devotee)}
-                          className={`p-4 flex items-center justify-between gap-4 cursor-pointer transition ${isSelected ? 'bg-[#D4A017]/8 border-l-4 border-l-[#D4A017]' : 'hover:bg-[#F8F6F0]/65 border-l-4 border-l-transparent'}`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isSelected ? 'bg-[#D4A017] text-white' : 'bg-[#D4A017]/10 text-[#9C7414]'}`}>
-                              {devotee.devoteeName[0]?.toUpperCase() || 'D'}
-                            </span>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-semibold text-[#0B1F3A] truncate">{devotee.devoteeName}</h3>
-                              <p className="text-[11px] text-[#42516A] flex items-center gap-1 font-semibold">
-                                <Phone size={10} />
-                                {devotee.mobile}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${devotee.plan === 'Yearly' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'}`}>
-                              {devotee.plan}
-                            </span>
-                            <Eye size={14} className="text-[#9C7414]/70 hover:text-[#0B1F3A] transition" />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* ── RIGHT PANEL: Devotee Details (Glassmorphic) ── */}
-            <section className="h-fit">
-              {selectedDevotee ? (
-                <div className="rounded-2xl border border-[#D4A017]/18 bg-white shadow-[0_16px_48px_rgba(11,31,58,0.08)] overflow-hidden">
-                  
-                  {/* Decorative Banner */}
-                  <div className="relative h-20 bg-gradient-to-r from-[#07172D] to-[#123761] flex items-center px-6">
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 10% 50%, #D4A017 0%, transparent 60%)' }} />
-                    <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-xl border-2 border-white bg-[#D4A017] text-2xl font-bold text-white shadow-md">
-                      {selectedDevotee.devoteeName[0]?.toUpperCase() || 'D'}
-                    </span>
-                  </div>
-
-                  {/* Devotee Info */}
-                  <div className="p-6 space-y-5">
-                    <div>
-                      <h2 className="text-xl font-bold text-[#0B1F3A] tracking-tight">{selectedDevotee.devoteeName}</h2>
-                      <p className="text-xs text-[#9C7414] font-semibold mt-0.5">Status: <strong className="text-emerald-600 uppercase">● Active Member</strong></p>
-                    </div>
-
-                    <div className="border-t border-[#EFE6D3] pt-4 grid gap-3.5 text-sm">
-                      {/* Mobile */}
-                      <div className="rounded-xl border border-[#EFE6D3] bg-[#F8F6F0] px-4 py-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Mobile number</p>
-                          <p className="mt-1 flex items-center gap-1.5 font-semibold text-[#0B1F3A]">
-                            <Phone size={12} className="text-[#D4A017]" />
-                            {selectedDevotee.mobile}
-                          </p>
-                        </div>
-                        <a href={`tel:${selectedDevotee.mobile}`} className="h-8 w-8 flex items-center justify-center rounded-lg bg-[#0B1F3A] text-white hover:bg-[#123761] transition">
-                          <Phone size={13} />
-                        </a>
-                      </div>
-
-                      {/* Address */}
-                      <div className="rounded-xl border border-[#EFE6D3] bg-[#F8F6F0] px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Residential Address</p>
-                        <p className="mt-1.5 font-semibold text-[#0B1F3A] leading-relaxed whitespace-pre-line">{selectedDevotee.address}</p>
-                      </div>
-
-                      {/* Subscription details */}
-                      <div className="rounded-xl border border-[#EFE6D3] bg-[#F8F6F0] px-4 py-3 grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Plan select</p>
-                          <p className="mt-1 font-extrabold text-indigo-700">{selectedDevotee.plan} Plan</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Contribution amount</p>
-                          <p className="mt-1 font-extrabold text-[#9C7414]">₹{Number(selectedDevotee.amount).toLocaleString('en-IN')}</p>
-                        </div>
-                      </div>
-
-                      {/* Joined Date */}
-                      <div className="rounded-xl border border-[#EFE6D3] bg-[#F8F6F0] px-4 py-3 flex justify-between items-center">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Joined Date</p>
-                          <p className="mt-1 font-semibold text-[#0B1F3A]">{fmtDate(selectedDevotee.joinedAt)}</p>
-                        </div>
-                        {selectedDevotee.updatedAt && (
-                          <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Last Updated</p>
-                            <p className="mt-1 font-semibold text-[#0B1F3A] text-xs">{fmtDate(selectedDevotee.updatedAt)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions button */}
-                    <div className="border-t border-[#EFE6D3] pt-5 flex items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleEditRedirect(selectedDevotee.id)}
-                        className="flex items-center gap-1.5 rounded-lg border border-[#D4A017]/30 px-4 py-2 text-xs font-bold text-[#9C7414] hover:bg-[#D4A017]/8 transition"
-                      >
-                        <Edit size={12} />
-                        Edit Devotee Info
-                      </button>
-                    </div>
-
-                  </div>
+            {/* Table data */}
+            <div className="overflow-x-auto">
+              {loading ? (
+                <p className="py-12 text-center text-sm text-[#42516A]">Loading devotee roster…</p>
+              ) : filteredDevotees.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                  <Heart size={36} className="text-[#D4A017]/30" />
+                  <p className="font-semibold text-[#0B1F3A]">No devotees found</p>
+                  <p className="text-xs text-[#42516A]/80">Try adjusting your search or register a new devotee.</p>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-[#D4A017]/30 p-10 text-center flex flex-col items-center justify-center gap-3">
-                  <UsersRound size={36} className="text-[#D4A017]/30" />
-                  <p className="text-sm font-semibold text-[#42516A]">Select a devotee from the roster list to see full details.</p>
-                </div>
+                <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-xs font-bold uppercase tracking-wider text-[#42516A]">
+                      <th className="px-6 py-4">Devotee Name</th>
+                      <th className="px-6 py-4">Mobile</th>
+                      <th className="px-6 py-4">Address</th>
+                      <th className="px-6 py-4">Plan</th>
+                      <th className="px-6 py-4">Amount</th>
+                      <th className="px-6 py-4">Joined Date</th>
+                      <th className="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDevotees.map((devotee) => (
+                      <tr key={devotee.id} className="border-b border-[#EFE6D3] transition hover:bg-[#F8F6F0]/50">
+                        <td className="px-6 py-4 font-semibold text-[#0B1F3A]">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D4A017]/10 text-xs font-bold text-[#9C7414]">
+                              {devotee.devoteeName[0]?.toUpperCase() || 'D'}
+                            </span>
+                            <span>{devotee.devoteeName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-[#42516A]">
+                          <div className="flex items-center gap-1.5">
+                            <Phone size={13} className="text-[#D4A017]" />
+                            {devotee.mobile}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-[#42516A] max-w-xs truncate" title={devotee.address}>
+                          {devotee.address}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${devotee.plan === 'Yearly' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'}`}>
+                            {devotee.plan}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-extrabold text-[#9C7414]">
+                          ₹{Number(devotee.amount || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-[#42516A]">
+                          {fmtDate(devotee.joinedAt)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveDevotee(devotee)}
+                              className="p-1.5 rounded-lg border border-[#D4A017]/25 text-[#9C7414] hover:bg-[#D4A017]/10 transition"
+                              title="View details"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <a
+                              href={`/temple/membership?edit=${devotee.id}`}
+                              className="p-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition"
+                              title="Edit Devotee"
+                            >
+                              <Pencil size={14} />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDevotee(devotee.id, devotee.devoteeName)}
+                              className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition"
+                              title="Delete Devotee"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </section>
+            </div>
+            
+            {/* Table Footer */}
+            <div className="bg-[#F8F6F0]/40 border-t border-[#EFE6D3] px-6 py-3.5 flex items-center justify-between text-xs text-[#42516A] font-semibold">
+              <span>Showing {filteredDevotees.length} of {devotees.length} devotees</span>
+              <span>All records synced with Realtime DB</span>
+            </div>
 
-          </div>
-
+          </section>
         </main>
       </div>
+
+      {/* ── View Details Modal ── */}
+      {activeDevotee && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" aria-hidden="true" onClick={() => setActiveDevotee(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-[0_32px_80px_rgba(0,0,0,0.22)] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[#EFE6D3] px-6 py-4">
+                <h3 className="font-display text-lg font-bold text-[#0B1F3A]">Devotee Profile Card</h3>
+                <button type="button" onClick={() => setActiveDevotee(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#42516A] hover:bg-[#EFE6D3]"><X size={16} /></button>
+              </div>
+              <div className="p-6 space-y-5">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4A017]/10 text-xl font-bold text-[#9C7414]">
+                    {activeDevotee.devoteeName[0]?.toUpperCase() || 'D'}
+                  </span>
+                  <div>
+                    <h4 className="text-lg font-bold text-[#0B1F3A]">{activeDevotee.devoteeName}</h4>
+                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${activeDevotee.plan === 'Yearly' ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'}`}>
+                      {activeDevotee.plan} Plan
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3.5 pt-2 border-t border-[#EFE6D3]">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Mobile Contact</span>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-[#0B1F3A]">
+                      <Phone size={13} className="text-[#D4A017]" />
+                      {activeDevotee.mobile}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Residential Address</span>
+                    <p className="mt-0.5 text-sm font-semibold text-[#0B1F3A] leading-relaxed">
+                      {activeDevotee.address}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Fee Paid</span>
+                      <p className="mt-0.5 text-sm font-bold text-[#9C7414]">
+                        ₹{Number(activeDevotee.amount || 0).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A9A9A]">Joined Date</span>
+                      <p className="mt-0.5 text-sm font-semibold text-[#42516A]">
+                        {fmtDate(activeDevotee.joinedAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-[#EFE6D3] px-6 py-4 bg-[#F8F6F0]/40">
+                <button type="button" onClick={() => setActiveDevotee(null)}
+                  className="rounded-lg border border-[#D4A017]/20 px-5 py-2 text-sm font-bold text-[#42516A] hover:bg-[#F8F6F0] transition">Close Card</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
