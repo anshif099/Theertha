@@ -237,7 +237,7 @@ export default function TempleAccountsPage() {
   /* Filtered Array Slices strictly by selected view / date ranges */
   const filteredReceipts = useMemo(() => {
     return dbReceipts.filter(r => {
-      const dateStr = r.date || r.savedAt?.slice(0, 10)
+      const dateStr = r.dateStr || r.date || r.savedAt?.slice(0, 10)
       if (!dateStr) return false
       if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
       if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
@@ -271,7 +271,7 @@ export default function TempleAccountsPage() {
     const receiptsFormatted = filteredReceipts.map(r => ({
       id: `rcpt-${r.id}`,
       voucherNo: r.receiptNo || 'JV-2026-CTR',
-      date: r.date || r.savedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      date: r.dateStr || r.date || r.savedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       narration: `Counter collection - Devotee: ${r.devoteeName || 'Anonymous'} (Nakshatra: ${r.starName || '—'})`,
       head: 'Pooja income',
       debit: 0,
