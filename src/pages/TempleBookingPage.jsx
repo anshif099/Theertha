@@ -32,7 +32,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { getNextReceiptNo, saveReceipt, loadSlotsConfig } from '../lib/settingsStore.js'
+import { getNextReceiptNo, saveReceipt, loadSlotsConfig, saveDevotee } from '../lib/settingsStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -132,6 +132,7 @@ export default function TempleBookingPage() {
   const [selectedSlot, setSelectedSlot] = useState(SLOTS[3]) // Default 10:00 AM Pantheeradi
 
   const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const [paymentStatus, setPaymentStatus] = useState('Paid')
   const [saving, setSaving] = useState(false)
 
   const templeName = temple?.name || 'Temple'
@@ -218,15 +219,32 @@ export default function TempleBookingPage() {
         remarks: `Gotra: ${gotra.trim()} · Rasi: ${rasiName} · Slot: ${selectedSlot.name}`,
         items: [{ name: selectedSeva.name, amount: selectedSeva.price, qty: 1 }],
         total: selectedSeva.price,
-        paymentMethod,
+        paymentMethod: paymentStatus === 'Unpaid' ? 'Cash' : paymentMethod,
+        paymentStatus,
         date: new Date(selectedDate.dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
         time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        priestName: selectedSlot.priest || '',
       }
 
       // 2. Save dynamic receipt payload to database
       await saveReceipt(session.id, payload)
+
+      // 3. Register Devotee
+      await saveDevotee(session.id, {
+        devoteeName: devoteeName.trim(),
+        mobile: mobile.trim(),
+        starName,
+        receiptId: receiptNo,
+        receiptNo,
+        total: selectedSeva.price,
+        paymentStatus
+      })
+
+      if (paymentStatus === 'Unpaid') {
+        alert('Booking confirmed successfully as UNPAID (No Print).')
+      }
       
-      // 3. Auto redirect to Nadavaravu dashboard register
+      // 4. Auto redirect to Nadavaravu dashboard register
       window.location.href = '/temple/nadavaravu'
     } catch (err) {
       console.error('Failed to confirm walk-in counter booking:', err)
@@ -680,25 +698,63 @@ export default function TempleBookingPage() {
                 </div>
               </div>
 
+              {/* Payment Status Toggle */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#EFE6D3]/40">Payment Status</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStatus('Paid')}
+                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition ${
+                      paymentStatus === 'Paid'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                        : 'bg-white/5 text-[#EFE6D3]/60 hover:bg-white/10'
+                    }`}
+                  >
+                    Paid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStatus('Unpaid')}
+                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition ${
+                      paymentStatus === 'Unpaid'
+                        ? 'bg-rose-600 text-white shadow-md shadow-rose-600/10'
+                        : 'bg-white/5 text-[#EFE6D3]/60 hover:bg-white/10'
+                    }`}
+                  >
+                    Unpaid
+                  </button>
+                </div>
+              </div>
+
               {/* Action confirm buttons */}
-              <div className="flex items-center gap-3">
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="rounded-lg border border-white/10 bg-[#141519] px-3.5 py-3 text-xs text-white outline-none focus:border-[#D4A017]/50"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Card">Card</option>
-                </select>
+              <div className="flex flex-col gap-3">
+                {paymentStatus === 'Paid' && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#EFE6D3]/40">Payment Mode</span>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-[#141519] px-3.5 py-3 text-xs text-white outline-none focus:border-[#D4A017]/50 cursor-pointer"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Card">Card</option>
+                    </select>
+                  </div>
+                )}
 
                 <button
                   onClick={handleConfirmBooking}
                   disabled={saving || !devoteeName.trim()}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-3 text-xs font-bold text-[#07172D] hover:bg-[#EFE6D3] transition disabled:opacity-50 outline-none"
+                  className={`w-full flex items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-xs font-black uppercase tracking-wider transition disabled:opacity-50 outline-none ${
+                    paymentStatus === 'Unpaid'
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/10'
+                      : 'bg-white hover:bg-[#EFE6D3] text-[#07172D] shadow-lg shadow-white/5'
+                  }`}
                 >
                   <Check size={14} />
-                  Confirm &amp; print
+                  {paymentStatus === 'Unpaid' ? 'Confirm Booking (No Print)' : 'Confirm & print'}
                 </button>
               </div>
 

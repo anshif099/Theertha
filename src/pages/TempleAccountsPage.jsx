@@ -276,7 +276,7 @@ export default function TempleAccountsPage() {
       head: 'Pooja income',
       debit: 0,
       credit: Number(r.total || 0),
-      status: 'Posted',
+      status: r.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Posted',
     }))
 
     // 2. Map real expenses from billing
@@ -321,7 +321,9 @@ export default function TempleAccountsPage() {
   /* Computations for Dashboard Statistics strictly based on counter receipts and billing expenses */
   const financeStats = useMemo(() => {
     // 1. Income heads calculated entirely from dynamic logs (Strictly real data!)
-    const poojaIncomeTotal = filteredReceipts.reduce((sum, r) => sum + Number(r.total || 0), 0) + filteredTransactions
+    const poojaIncomeTotal = filteredReceipts
+      .filter(r => r.paymentStatus !== 'Unpaid')
+      .reduce((sum, r) => sum + Number(r.total || 0), 0) + filteredTransactions
       .filter(t => t.head === 'Pooja income' && t.type === 'Credit')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0)
 
@@ -859,7 +861,9 @@ export default function TempleAccountsPage() {
                           <td className="px-5 py-4 text-center">
                             <span
                               className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-black tracking-wide uppercase ${
-                                isPending
+                                txn.status === 'Unpaid'
+                                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/10'
+                                  : isPending
                                   ? 'bg-[#D4A017]/14 text-[#F7D77C]'
                                   : 'bg-emerald-500/10 text-emerald-400'
                               }`}

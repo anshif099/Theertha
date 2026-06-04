@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  CheckCircle2,
   ClipboardList,
   IndianRupee,
   LogOut,
@@ -13,7 +14,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts } from '../lib/settingsStore.js'
+import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 
 /* ── live clock ── */
@@ -131,6 +132,11 @@ export default function CounterDashboardPage() {
   const [starId, setStarId] = useState('')
   const [remarks, setRemarks] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const [paymentStatus, setPaymentStatus] = useState('Paid')
+  const [foundDevotee, setFoundDevotee] = useState(null)
+  const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [priests, setPriests] = useState([])
+  const [priestId, setPriestId] = useState('')
 
   /* firebase data */
   const [stars, setStars] = useState([])
@@ -163,9 +169,18 @@ export default function CounterDashboardPage() {
   function refreshReceipts() {
     if (!counterSession?.templeId) return
     setLoadingReceipts(true)
-    loadTodayReceipts(counterSession.templeId)
+    
+    const localToday = new Date()
+    const offset = localToday.getTimezoneOffset()
+    const localDate = new Date(localToday.getTime() - (offset*60*1000))
+    const todayStrPrefix = localDate.toISOString().split('T')[0]
+
+    loadAllReceipts(counterSession.templeId)
       .then((list) => {
-        const filtered = list.filter(r => r.counterId === counterSession.counterId)
+        const filtered = list.filter(r => 
+          r.counterId === counterSession.counterId && 
+          r.savedAt && r.savedAt.slice(0, 10) === todayStrPrefix
+        )
         setReceipts(filtered)
       })
       .catch((err) => {
@@ -186,13 +201,15 @@ export default function CounterDashboardPage() {
     const sevaBreakdown = {}
 
     receipts.forEach((r) => {
-      totalCollected += Number(r.total || 0)
-      if (r.paymentMethod === 'Cash') {
-        cashTotal += Number(r.total || 0)
-      } else if (r.paymentMethod === 'UPI') {
-        upiTotal += Number(r.total || 0)
-      } else if (r.paymentMethod === 'Card') {
-        cardTotal += Number(r.total || 0)
+      if (r.paymentStatus !== 'Unpaid') {
+        totalCollected += Number(r.total || 0)
+        if (r.paymentMethod === 'Cash') {
+          cashTotal += Number(r.total || 0)
+        } else if (r.paymentMethod === 'UPI') {
+          upiTotal += Number(r.total || 0)
+        } else if (r.paymentMethod === 'Card') {
+          cardTotal += Number(r.total || 0)
+        }
       }
 
       if (r.items && Array.isArray(r.items)) {
@@ -310,6 +327,33 @@ export default function CounterDashboardPage() {
     }
   }, [counterSession])
 
+  /* devotee search by mobile number */
+  useEffect(() => {
+    const cleanMobile = mobile ? mobile.trim() : ''
+    if (cleanMobile.length === 10 && counterSession?.templeId) {
+      getDevoteeByMobile(counterSession.templeId, cleanMobile)
+        .then((devotee) => {
+          if (devotee) {
+            setFoundDevotee(devotee)
+          } else {
+            setFoundDevotee(null)
+          }
+        })
+        .catch(() => setFoundDevotee(null))
+    } else {
+      setFoundDevotee(null)
+    }
+  }, [mobile, counterSession])
+
+  function handleAutofillDevotee() {
+    if (foundDevotee) {
+      setDevoteeName(foundDevotee.devoteeName || '')
+      if (foundDevotee.starId && stars.some((s) => s.id === foundDevotee.starId)) {
+        setStarId(foundDevotee.starId)
+      }
+    }
+  }
+
   /* load data */
   useEffect(() => {
     if (!counterSession) return
@@ -323,11 +367,13 @@ export default function CounterDashboardPage() {
       .then(setTempleData)
       .catch(() => {})
 
-    Promise.all([loadStars(templeId), loadQuickItems(templeId)])
-      .then(([starsData, itemsData]) => {
+    Promise.all([loadStars(templeId), loadQuickItems(templeId), loadPriests(templeId)])
+      .then(([starsData, itemsData, priestsData]) => {
         setStars(starsData)
         setQuickItems(itemsData)
+        setPriests(priestsData)
         if (starsData.length > 0) setStarId(starsData[0].id)
+        if (priestsData.length > 0) setPriestId(priestsData[0].id)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -370,9 +416,18 @@ export default function CounterDashboardPage() {
     setCartItems((prev) => [...prev, { ...item, qty: 1 }])
   }
 
+  function formatSelectedDate(dateStr) {
+    if (!dateStr) return ''
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return dateStr
+    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    return dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+  }
+
   /* build the receipt payload */
   function buildReceiptPayload() {
     const selectedStar = stars.find((s) => s.id === starId)
+    const selectedPriest = priests.find((p) => p.id === priestId)
     const now = new Date()
     return {
       receiptNo,
@@ -390,8 +445,12 @@ export default function CounterDashboardPage() {
       items:         cartItems.map((c) => ({ name: c.name, amount: c.amount, qty: c.qty })),
       total,
       paymentMethod,
-      date: now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+      paymentStatus,
+      bookingDate,
+      date: formatSelectedDate(bookingDate),
       time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      priestId,
+      priestName:    selectedPriest?.name || '',
     }
   }
 
@@ -404,6 +463,10 @@ export default function CounterDashboardPage() {
     setRemarks('')
     setCartItems([])
     setPaymentMethod('Cash')
+    setPaymentStatus('Paid')
+    setFoundDevotee(null)
+    setBookingDate(new Date().toISOString().slice(0, 10))
+    setPriestId(priests[0]?.id || '')
     setReceiptNo('Generating…')
     getNextReceiptNo(counterSession.templeId, counterSession.counterId)
       .then(setReceiptNo)
@@ -427,11 +490,51 @@ export default function CounterDashboardPage() {
     const data = buildReceiptPayload()
     try {
       const saved = await saveReceipt(counterSession.templeId, data)
+      if (mobile && mobile.trim()) {
+        const selectedStar = stars.find((s) => s.id === starId)
+        await saveDevotee(counterSession.templeId, {
+          devoteeName,
+          mobile,
+          starId,
+          starName: selectedStar?.name || '',
+          receiptId: saved.id,
+          receiptNo: saved.receiptNo,
+          total: saved.total,
+          paymentStatus: 'Paid'
+        })
+      }
       sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))
     } catch {
       sessionStorage.setItem('theertha-last-receipt', JSON.stringify(data))
     }
     window.location.href = '/temple/counter/receipt-preview'
+  }
+
+  async function handleConfirmReceipt() {
+    if (cartItems.length === 0) return
+    const data = buildReceiptPayload()
+    try {
+      const saved = await saveReceipt(counterSession.templeId, data)
+      if (mobile && mobile.trim()) {
+        const selectedStar = stars.find((s) => s.id === starId)
+        await saveDevotee(counterSession.templeId, {
+          devoteeName,
+          mobile,
+          starId,
+          starName: selectedStar?.name || '',
+          receiptId: saved.id,
+          receiptNo: saved.receiptNo,
+          total: saved.total,
+          paymentStatus: 'Unpaid'
+        })
+      }
+      alert('Unpaid receipt confirmed and saved successfully!')
+      refreshReceipts()
+      handleNewReceipt()
+    } catch (err) {
+      console.error('Failed to save unpaid receipt:', err)
+      alert('Failed to save receipt. Please try again.')
+    }
   }
 
   function handleLogout() {
@@ -505,12 +608,16 @@ export default function CounterDashboardPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
-                Date &amp; Time
+              <label htmlFor="booking-date" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
+                Booking Date
               </label>
-              <div className="flex h-10 items-center rounded-lg border border-white/10 bg-white/5 px-3 text-sm font-semibold text-[#F8F6F0]">
-                {formatDateTime(clock)}
-              </div>
+              <input
+                id="booking-date"
+                type="date"
+                value={bookingDate}
+                onChange={(e) => setBookingDate(e.target.value)}
+                className="w-full h-10 rounded-lg border border-white/10 bg-[#07172D] px-3 text-sm font-semibold text-[#F8F6F0] outline-none transition focus:border-[#D4A017]/60 focus:ring-1 focus:ring-[#D4A017]/20"
+              />
             </div>
           </div>
 
@@ -571,6 +678,62 @@ export default function CounterDashboardPage() {
             </div>
           </div>
 
+          {/* Payment Status + Priest */}
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
+                Payment Status
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatus('Paid')}
+                  className={`flex-1 rounded-lg py-2.5 text-xs font-bold transition duration-200 outline-none ${
+                    paymentStatus === 'Paid'
+                      ? 'bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                      : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatus('Unpaid')}
+                  className={`flex-1 rounded-lg py-2.5 text-xs font-bold transition duration-200 outline-none ${
+                    paymentStatus === 'Unpaid'
+                      ? 'bg-rose-600 text-white shadow-[0_0_12px_rgba(225,29,72,0.3)]'
+                      : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  Unpaid
+                </button>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="priest-select" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
+                Performing Priest
+              </label>
+              {priests.length === 0 ? (
+                <div className="flex h-10 items-center rounded-lg border border-white/10 bg-white/4 px-3 text-xs text-[#EFE6D3]/40">
+                  No priests — add in Settings
+                </div>
+              ) : (
+                <select
+                  id="priest-select"
+                  value={priestId}
+                  onChange={(e) => setPriestId(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-white/10 bg-[#0B1F3A] px-3 text-sm font-semibold text-[#F8F6F0] outline-none transition focus:border-[#D4A017]/60 focus:ring-1 focus:ring-[#D4A017]/20"
+                >
+                  {priests.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
           {/* Remarks */}
           <div className="mt-4">
             <label htmlFor="remarks" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
@@ -585,6 +748,57 @@ export default function CounterDashboardPage() {
               className="w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-[#F8F6F0] outline-none transition placeholder:text-[#EFE6D3]/28 focus:border-[#D4A017]/60 focus:bg-white/8 focus:ring-1 focus:ring-[#D4A017]/20"
             />
           </div>
+
+          {/* Devotee Record Found Card */}
+          {foundDevotee && (
+            <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/90 p-4 space-y-3 text-xs shadow-lg animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#F7D77C]">
+                  <Sparkles size={14} className="text-[#F7D77C]" />
+                  <span>Devotee Record Found</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAutofillDevotee}
+                  className="rounded bg-[#D4A017] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#07172D] hover:bg-[#F7D77C] transition outline-none"
+                >
+                  Autofill details
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 text-[#EFE6D3]/80">
+                <div>Name: <span className="font-bold text-white text-sm block mt-0.5">{foundDevotee.devoteeName}</span></div>
+                <div>Star: <span className="font-bold text-white text-sm block mt-0.5">{foundDevotee.starName || '—'}</span></div>
+              </div>
+              
+              <div className="pt-2 border-t border-white/10 space-y-2">
+                <span className="font-bold text-[#EFE6D3]/50 block">Past Receipt History:</span>
+                <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-white/10">
+                  {foundDevotee.receipts && Object.values(foundDevotee.receipts).length > 0 ? (
+                    Object.values(foundDevotee.receipts).reverse().map((r, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5 transition hover:bg-white/8">
+                        <div className="font-mono text-[10px] text-white">
+                          {r.receiptNo} <span className="text-[#EFE6D3]/40">({r.date})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#F7D77C]">₹{r.total}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            r.paymentStatus === 'Unpaid' 
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/20' 
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/20'
+                          }`}>
+                            {r.paymentStatus || 'Paid'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[10px] text-[#EFE6D3]/40 italic py-1">No past transactions found for this number.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT: Quick Add Items ── */}
@@ -749,15 +963,27 @@ export default function CounterDashboardPage() {
             <Save size={15} />
             Save draft
           </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={cartItems.length === 0}
-            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50"
-          >
-            <Printer size={15} />
-            Print receipt
-          </button>
+          {paymentStatus === 'Unpaid' ? (
+            <button
+              type="button"
+              onClick={handleConfirmReceipt}
+              disabled={cartItems.length === 0}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition hover:bg-emerald-500 disabled:opacity-50 outline-none"
+            >
+              <CheckCircle2 size={15} />
+              Confirm receipt
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={cartItems.length === 0}
+              className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50 outline-none"
+            >
+              <Printer size={15} />
+              Print receipt
+            </button>
+          )}
         </div>
       </footer>
 

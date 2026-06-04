@@ -35,7 +35,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts, updatePoojaStatus, loadPoojaStatuses } from '../lib/settingsStore.js'
+import { loadTodayReceipts, updatePoojaStatus, loadPoojaStatuses, loadPriests, loadSlotsConfig } from '../lib/settingsStore.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -82,6 +82,8 @@ export default function TempleNadavaravuPage() {
   /* Live dynamic data */
   const [dbReceipts, setDbReceipts] = useState([])
   const [dbStatuses, setDbStatuses] = useState({})
+  const [dbPriests, setDbPriests] = useState([])
+  const [dbSlotsConfig, setDbSlotsConfig] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All') // All, Done, Live, Upcoming
 
@@ -92,11 +94,15 @@ export default function TempleNadavaravuPage() {
     setLoadingData(true)
     Promise.all([
       loadTodayReceipts(session.id),
-      loadPoojaStatuses(session.id)
+      loadPoojaStatuses(session.id),
+      loadPriests(session.id),
+      loadSlotsConfig(session.id)
     ])
-      .then(([receiptsData, statusesData]) => {
+      .then(([receiptsData, statusesData, priestsData, slotsConfigData]) => {
         setDbReceipts(receiptsData || [])
         setDbStatuses(statusesData || {})
+        setDbPriests(priestsData || [])
+        setDbSlotsConfig(slotsConfigData || [])
       })
       .catch((err) => {
         console.warn('Failed to load Nadavaravu details:', err)
@@ -125,6 +131,33 @@ export default function TempleNadavaravuPage() {
     refreshData()
   }, [session])
 
+  const priestsList = useMemo(() => {
+    if (dbPriests && dbPriests.length > 0) {
+      return dbPriests.map(p => ({
+        initials: getInitials(p.name),
+        name: p.name,
+        role: p.phone ? `Phone: ${p.phone}` : 'Registered Priest',
+        schedule: p.address ? `Address: ${p.address}` : 'All day',
+      }))
+    }
+    return priests
+  }, [dbPriests])
+
+  const poojasList = useMemo(() => {
+    if (dbSlotsConfig && dbSlotsConfig.length > 0) {
+      return dbSlotsConfig.map(s => ({
+        key: s.key || s.time,
+        time: s.time,
+        name: s.name,
+        type: 'Pooja slot',
+        priest: s.priest || '—',
+        amount: null,
+        defaultStatus: s.status || 'Scheduled'
+      }))
+    }
+    return defaultPoojas
+  }, [dbSlotsConfig])
+
   /* Aggregate receipts and match to timeline slots */
   const sevaRegister = useMemo(() => {
     const list = []
@@ -144,13 +177,17 @@ export default function TempleNadavaravuPage() {
             const itemKey = `${mappedTime}-${r.id}-${idx}`
             const dbStatus = dbStatuses[itemKey] || dbStatuses[mappedTime] || 'Scheduled'
 
+            // Find slot config for mappedTime to get the assigned priest
+            const slotCfg = dbSlotsConfig.find(s => s.time === mappedTime)
+            const priestName = r.priestName || (slotCfg ? slotCfg.priest : (mappedTime === '8:00 AM' || mappedTime === '12:00 PM' ? 'Suresh V.' : 'Rajan P.'))
+
             list.push({
               id: r.id,
               key: itemKey,
               time: mappedTime,
               name: it.name,
               subtitle: `${r.devoteeName || 'Anonymous'} — ${r.starName || '—'}`,
-              priest: mappedTime === '8:00 AM' || mappedTime === '12:00 PM' ? 'Suresh V.' : 'Rajan P.',
+              priest: priestName,
               amount: Number(it.amount || 0) * Number(it.qty || 1),
               status: dbStatus,
               isDefault: false,
@@ -209,6 +246,26 @@ export default function TempleNadavaravuPage() {
     if (activeFilter === 'Upcoming') return sevaRegister.filter(item => ['Scheduled', 'Next', 'Upcoming'].includes(item.status))
     return sevaRegister
   }, [sevaRegister, activeFilter])
+
+  // Handle toggling timeline slot status
+  async function handleToggleTimelineStatus(timePart, currentStatus) {
+    if (!session) return
+    let nextStatus = 'Scheduled'
+    if (!currentStatus || currentStatus === 'Scheduled' || currentStatus === 'Upcoming') {
+      nextStatus = 'In progress'
+    } else if (currentStatus === 'In progress' || currentStatus === 'Live') {
+      nextStatus = 'Done'
+    } else if (currentStatus === 'Done') {
+      nextStatus = 'Scheduled'
+    }
+
+    try {
+      await updatePoojaStatus(session.id, null, timePart, nextStatus)
+      refreshData()
+    } catch (err) {
+      console.error('Failed to toggle timeline status:', err)
+    }
+  }
 
   // Handle Mark Done operation
   async function handleMarkDone(itemKey) {
@@ -650,7 +707,7 @@ export default function TempleNadavaravuPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  {defaultPoojas.map((pooja) => {
+                  {poojasList.map((pooja) => {
                     const dynamicMatch = sevaRegister.find(s => s.time === pooja.time && s.id !== `default-${pooja.time}`)
                     const finalStatus = dbStatuses[pooja.time] || (dynamicMatch ? dynamicMatch.status : pooja.defaultStatus)
 
@@ -664,7 +721,8 @@ export default function TempleNadavaravuPage() {
                     return (
                       <div
                         key={pooja.time}
-                        className={`flex items-center justify-between border rounded-lg px-3 py-2.5 text-xs font-bold transition duration-300 ${statusClass}`}
+                        onClick={() => handleToggleTimelineStatus(pooja.time, finalStatus)}
+                        className={`flex items-center justify-between border rounded-lg px-3 py-2.5 text-xs font-bold transition duration-300 cursor-pointer hover:bg-white/5 active:scale-[0.98] ${statusClass}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-white/50">{pooja.time}</span>
@@ -689,7 +747,7 @@ export default function TempleNadavaravuPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {priests.map((priest) => (
+                  {priestsList.map((priest) => (
                     <div
                       key={priest.name}
                       className="flex items-center gap-3 rounded-lg bg-white/2 p-2.5 border border-white/5"

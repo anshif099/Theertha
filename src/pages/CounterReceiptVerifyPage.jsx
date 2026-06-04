@@ -124,6 +124,12 @@ export default function CounterReceiptVerifyPage() {
                 <span className="text-[#EFE6D3]/50">Devotee Mobile:</span>
                 <span className="text-white font-mono">{receipt.mobile ? `+91 ${receipt.mobile}` : '—'}</span>
               </div>
+              {receipt.priestName && (
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-[#EFE6D3]/50">Performing Priest:</span>
+                  <span className="text-white font-extrabold">{receipt.priestName}</span>
+                </div>
+              )}
               {receipt.remarks && (
                 <div className="flex justify-between items-center text-xs font-bold">
                   <span className="text-[#EFE6D3]/50">Remarks:</span>

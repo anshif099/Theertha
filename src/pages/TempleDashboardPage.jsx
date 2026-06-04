@@ -24,7 +24,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts, loadPoojaStatuses } from '../lib/settingsStore.js'
+import { loadTodayReceipts, loadPoojaStatuses, loadSlotsConfig } from '../lib/settingsStore.js'
 import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
 const mainMenuItems = [
@@ -100,6 +100,7 @@ export default function TempleDashboardPage() {
   const [loadingReceipts, setLoadingReceipts] = useState(true)
   const [poojaStatuses, setPoojaStatuses] = useState({})
   const [totalFD, setTotalFD] = useState(0)
+  const [slotsList, setSlotsList] = useState([])
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -166,13 +167,25 @@ export default function TempleDashboardPage() {
         console.warn('Unable to load today pooja statuses:', error)
       })
 
+    loadSlotsConfig(session.id)
+      .then((config) => {
+        if (isActive && config && Array.isArray(config)) {
+          setSlotsList(config)
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load slots config on dashboard:', error)
+      })
+
     return () => {
       isActive = false
     }
   }, [session])
 
   const metrics = useMemo(() => {
-    const todayTotal = receipts.reduce((sum, r) => sum + Number(r.total || 0), 0)
+    const todayTotal = receipts
+      .filter((r) => r.paymentStatus !== 'Unpaid')
+      .reduce((sum, r) => sum + Number(r.total || 0), 0)
     const devoteesTotal = receipts.length
     const sevasTotal = receipts.reduce((sum, r) => {
       if (r.items && Array.isArray(r.items)) {
@@ -230,15 +243,21 @@ export default function TempleDashboardPage() {
 
   const dynamicPoojaSchedule = useMemo(() => {
     const baseList = [
-      { time: '5:30 AM', name: 'Nirmalyam', defaultStatus: 'Done' },
-      { time: '6:30 AM', name: 'Usha Pooja', defaultStatus: 'Done' },
-      { time: '10:00 AM', name: 'Pantheeradi', defaultStatus: 'Now' },
-      { time: '12:00 PM', name: 'Ucha Pooja', defaultStatus: 'Upcoming' },
-      { time: '6:30 PM', name: 'Deeparadhana', defaultStatus: 'Upcoming' },
-      { time: '8:30 PM', name: 'Athazha Pooja', defaultStatus: 'Upcoming' },
+      { time: '5:30 AM', name: 'Nirmalyam', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
+      { time: '6:30 AM', name: 'Usha Pooja', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
+      { time: '8:00 AM', name: 'Abhishekam', defaultStatus: 'Upcoming', priest: 'Suresh V.' },
+      { time: '10:00 AM', name: 'Pantheeradi Pooja', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
+      { time: '12:00 PM', name: 'Ucha Pooja', defaultStatus: 'Upcoming', priest: 'Suresh V.' },
+      { time: '3:30 PM', name: 'Sayahna', defaultStatus: 'Upcoming', priest: 'Krishnan M.' },
+      { time: '6:30 PM', name: 'Deeparadhana', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
+      { time: '8:30 PM', name: 'Athazha Pooja', defaultStatus: 'Upcoming', priest: 'Krishnan M.' },
     ]
 
-    return baseList.map((pooja) => {
+    const list = slotsList && slotsList.length > 0
+      ? slotsList.map((s) => ({ time: s.time, name: s.name, defaultStatus: s.status || 'Upcoming', priest: s.priest }))
+      : baseList
+
+    return list.map((pooja) => {
       const liveStatus = poojaStatuses[pooja.time] || pooja.defaultStatus
       let finalStatus = 'Upcoming'
       if (liveStatus === 'Done') {
@@ -251,7 +270,7 @@ export default function TempleDashboardPage() {
         status: finalStatus,
       }
     })
-  }, [poojaStatuses])
+  }, [slotsList, poojaStatuses])
 
 
   function handleLogout() {
@@ -533,7 +552,14 @@ export default function TempleDashboardPage() {
                     )}`}
                   >
                     <span>{pooja.time}</span>
-                    <span className="text-[#0B1F3A]">{pooja.name}</span>
+                    <div className="flex flex-col">
+                      <span className="text-[#0B1F3A]">{pooja.name}</span>
+                      {pooja.priest && (
+                        <span className="text-[10px] text-[#42516A]/70 font-semibold mt-0.5">
+                          Priest: {pooja.priest}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs">{pooja.status}</span>
                   </div>
                 ))}

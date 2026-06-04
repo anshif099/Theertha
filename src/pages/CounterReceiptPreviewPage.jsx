@@ -176,6 +176,13 @@ export default function CounterReceiptPreviewPage() {
 
               <div>Mobile Number:</div>
               <div className="text-right text-black">{receipt.mobile || '—'}</div>
+
+              {receipt.priestName && (
+                <>
+                  <div>Performing Priest:</div>
+                  <div className="text-right text-black">{receipt.priestName}</div>
+                </>
+              )}
               
               {receipt.remarks && (
                 <>

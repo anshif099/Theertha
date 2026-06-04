@@ -89,7 +89,7 @@ function todayStr() {
  * Save a completed receipt under registeredTemples/{id}/receipts/{date}/{receiptId}
  */
 export async function saveReceipt(templeId, receipt) {
-  const date = todayStr()
+  const date = receipt.bookingDate || todayStr()
   const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${date}`))
   const record = { ...receipt, id: newRef.key, savedAt: new Date().toISOString(), dbDate: date }
   await set(newRef, record)
@@ -246,6 +246,68 @@ export async function addPriest(templeId, { name, salary, phone, address }) {
 export async function deletePriest(templeId, priestId) {
   await remove(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/priests/${priestId}`))
 }
+
+/* ══════════════════════════════════════════════
+   Devotees
+══════════════════════════════════════════════ */
+
+export async function saveDevotee(templeId, { devoteeName, mobile, starId, starName, receiptId, receiptNo, total, paymentStatus }) {
+  if (!mobile) return null
+  const path = `${TEMPLE_DB_PATH}/${templeId}/devotees/${mobile.trim()}`
+  const snap = await get(ref(realtimeDb, path))
+  let devotee = {
+    devoteeName: devoteeName.trim(),
+    mobile: mobile.trim(),
+    starId: starId || '',
+    starName: starName || '',
+    lastActive: new Date().toISOString(),
+    receipts: {}
+  }
+  if (snap.exists()) {
+    const existing = snap.val()
+    devotee = {
+      ...existing,
+      devoteeName: devoteeName.trim(),
+      starId: starId || existing.starId || '',
+      starName: starName || existing.starName || '',
+      lastActive: new Date().toISOString(),
+    }
+    if (!devotee.receipts) devotee.receipts = {}
+  }
+  if (receiptId) {
+    devotee.receipts[receiptId] = {
+      receiptNo,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+      total: Number(total),
+      paymentStatus // 'Paid' or 'Unpaid'
+    }
+  }
+  await set(ref(realtimeDb, path), devotee)
+  return devotee
+}
+
+export async function getDevoteeByMobile(templeId, mobile) {
+  if (!mobile) return null
+  const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/devotees/${mobile.trim()}`))
+  if (!snap.exists()) return null
+  return snap.val()
+}
+
+export async function loadDevotees(templeId) {
+  const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/devotees`))
+  if (!snap.exists()) return []
+  const val = snap.val()
+  return Object.entries(val)
+    .filter(([, d]) => d && typeof d === 'object')
+    .map(([mobile, d]) => ({ mobile, ...d }))
+    .sort((a, b) => new Date(b.lastActive || 0) - new Date(a.lastActive || 0))
+}
+
+export async function deleteDevotee(templeId, mobile) {
+  if (!mobile) return
+  await remove(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/devotees/${mobile.trim()}`))
+}
+
 
 
 
