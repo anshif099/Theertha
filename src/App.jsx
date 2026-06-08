@@ -19,9 +19,17 @@ import TempleProfilePage from './pages/TempleProfilePage.jsx'
 import TempleMembershipPage from './pages/TempleMembershipPage.jsx'
 import TempleDevoteesPage from './pages/TempleDevoteesPage.jsx'
 import TempleFixedDepositPage from './pages/TempleFixedDepositPage.jsx'
+import TempleDailySchedulePage from './pages/TempleDailySchedulePage.jsx'
+import TempleDonationPage from './pages/TempleDonationPage.jsx'
 
 
 function App() {
+  if (window.location.pathname === '/temple/donations') {
+    return <TempleDonationPage />
+  }
+  if (window.location.pathname === '/temple/daily-schedule') {
+    return <TempleDailySchedulePage />
+  }
   if (window.location.pathname === '/temple/fixed-deposit') {
     return <TempleFixedDepositPage />
   }

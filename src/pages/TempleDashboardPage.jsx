@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BedDouble,
   Building2,
   CalendarCheck,
+  CalendarDays,
   ClipboardList,
   FileText,
+  HandCoins,
   Heart,
   IndianRupee,
   Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
-  PawPrint,
   PiggyBank,
   ReceiptText,
   Settings,
-  Store,
-  UserRoundCheck,
   UsersRound,
   WalletCards,
   X,
@@ -24,7 +22,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts, loadPoojaStatuses, loadSlotsConfig } from '../lib/settingsStore.js'
+import { loadTodayReceipts } from '../lib/settingsStore.js'
 import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
 const mainMenuItems = [
@@ -40,21 +38,11 @@ const mainMenuItems = [
 ]
 
 const addonItems = [
-  { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 // Real-time dynamic metrics and transactions will be populated from Firebase state in the component.
-
-const poojaSchedule = [
-  { time: '5:30 AM', name: 'Nirmalyam', status: 'Done' },
-  { time: '6:30 AM', name: 'Usha Pooja', status: 'Done' },
-  { time: '10:00 AM', name: 'Pantheeradi', status: 'Now' },
-  { time: '12:00 PM', name: 'Ucha Pooja', status: 'Upcoming' },
-  { time: '6:30 PM', name: 'Deeparadhana', status: 'Upcoming' },
-  { time: '8:30 PM', name: 'Athazha Pooja', status: 'Upcoming' },
-]
 
 function getInitials(name = 'Temple') {
   return name
@@ -78,18 +66,6 @@ function transactionStatusClass(status) {
   return 'bg-[#EFE6D3] text-[#0B1F3A] ring-[#D4A017]/24'
 }
 
-function scheduleStatusClass(status) {
-  if (status === 'Done') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  }
-
-  if (status === 'Now') {
-    return 'border-[#D4A017] bg-[#D4A017]/14 text-[#0B1F3A]'
-  }
-
-  return 'border-[#EFE6D3] bg-[#F8F6F0] text-[#42516A]'
-}
-
 export default function TempleDashboardPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
@@ -98,9 +74,7 @@ export default function TempleDashboardPage() {
 
   const [receipts, setReceipts] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(true)
-  const [poojaStatuses, setPoojaStatuses] = useState({})
   const [totalFD, setTotalFD] = useState(0)
-  const [slotsList, setSlotsList] = useState([])
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -155,26 +129,6 @@ export default function TempleDashboardPage() {
       })
       .catch((error) => {
         console.warn('Unable to load fixed deposits:', error)
-      })
-
-    loadPoojaStatuses(session.id)
-      .then((statuses) => {
-        if (isActive) {
-          setPoojaStatuses(statuses || {})
-        }
-      })
-      .catch((error) => {
-        console.warn('Unable to load today pooja statuses:', error)
-      })
-
-    loadSlotsConfig(session.id)
-      .then((config) => {
-        if (isActive && config && Array.isArray(config)) {
-          setSlotsList(config)
-        }
-      })
-      .catch((error) => {
-        console.warn('Unable to load slots config on dashboard:', error)
       })
 
     return () => {
@@ -240,37 +194,6 @@ export default function TempleDashboardPage() {
       }
     })
   }, [receipts])
-
-  const dynamicPoojaSchedule = useMemo(() => {
-    const baseList = [
-      { time: '5:30 AM', name: 'Nirmalyam', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
-      { time: '6:30 AM', name: 'Usha Pooja', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
-      { time: '8:00 AM', name: 'Abhishekam', defaultStatus: 'Upcoming', priest: 'Suresh V.' },
-      { time: '10:00 AM', name: 'Pantheeradi Pooja', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
-      { time: '12:00 PM', name: 'Ucha Pooja', defaultStatus: 'Upcoming', priest: 'Suresh V.' },
-      { time: '3:30 PM', name: 'Sayahna', defaultStatus: 'Upcoming', priest: 'Krishnan M.' },
-      { time: '6:30 PM', name: 'Deeparadhana', defaultStatus: 'Upcoming', priest: 'Rajan P.' },
-      { time: '8:30 PM', name: 'Athazha Pooja', defaultStatus: 'Upcoming', priest: 'Krishnan M.' },
-    ]
-
-    const list = slotsList && slotsList.length > 0
-      ? slotsList.map((s) => ({ time: s.time, name: s.name, defaultStatus: s.status || 'Upcoming', priest: s.priest }))
-      : baseList
-
-    return list.map((pooja) => {
-      const liveStatus = poojaStatuses[pooja.time] || pooja.defaultStatus
-      let finalStatus = 'Upcoming'
-      if (liveStatus === 'Done') {
-        finalStatus = 'Done'
-      } else if (liveStatus === 'In progress' || liveStatus === 'Live' || liveStatus === 'Now') {
-        finalStatus = 'Now'
-      }
-      return {
-        ...pooja,
-        status: finalStatus,
-      }
-    })
-  }, [slotsList, poojaStatuses])
 
 
   function handleLogout() {
@@ -472,7 +395,7 @@ export default function TempleDashboardPage() {
             })}
           </section>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+          <div className="mt-6">
             <section className="rounded-lg border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
               <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-5 py-4">
                 <h2 className="font-display text-2xl font-semibold">
@@ -531,38 +454,6 @@ export default function TempleDashboardPage() {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-[#D4A017]/18 bg-white p-5 shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="font-display text-2xl font-semibold">
-                  Today's Pooja Schedule
-                </h2>
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EFE6D3] text-[#9C7414]">
-                  <UserRoundCheck size={20} aria-hidden="true" />
-                </span>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {dynamicPoojaSchedule.map((pooja) => (
-                  <div
-                    key={`${pooja.time}-${pooja.name}`}
-                    className={`grid grid-cols-[76px_1fr_auto] items-center gap-3 rounded-md border px-3 py-3 text-sm font-semibold ${scheduleStatusClass(
-                      pooja.status,
-                    )}`}
-                  >
-                    <span>{pooja.time}</span>
-                    <div className="flex flex-col">
-                      <span className="text-[#0B1F3A]">{pooja.name}</span>
-                      {pooja.priest && (
-                        <span className="text-[10px] text-[#42516A]/70 font-semibold mt-0.5">
-                          Priest: {pooja.priest}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs">{pooja.status}</span>
-                  </div>
-                ))}
               </div>
             </section>
           </div>

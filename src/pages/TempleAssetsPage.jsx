@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
-  BedDouble,
   Building2,
+  CalendarDays,
   CalendarCheck,
   ChevronRight,
   ClipboardList,
   Download,
   Eye,
   FileText,
+  HandCoins,
   Heart,
   IndianRupee,
   Landmark,
@@ -17,14 +18,12 @@ import {
   MapPin,
   Menu,
   Package,
-  PawPrint,
   Pencil,
   Phone,
   PiggyBank,
   PlusCircle,
   ReceiptText,
   Settings,
-  Store,
   Trash2,
   TrendingDown,
   UsersRound,
@@ -58,10 +57,9 @@ const mainMenuItems = [
   { label: 'Devotees',   icon: Heart,           href: '/temple/devotees' },
 ]
 const addonItems = [
-  { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 
 function getInitials(name = 'Temple') {

@@ -2,20 +2,19 @@ import { useMemo } from 'react'
 import {
   ArrowLeft,
   Building2,
-  BedDouble,
+  CalendarDays,
   ClipboardList,
   Construction,
   FileText,
+  HandCoins,
   Heart,
   Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
-  PawPrint,
   PiggyBank,
   ReceiptText,
   Settings,
-  Store,
   UsersRound,
   WalletCards,
   X,
@@ -28,9 +27,7 @@ const FEATURE_META = {
   membership:    { label: 'Membership',    icon: UsersRound,  color: 'from-blue-500 to-indigo-600',   desc: 'Manage devotee memberships, subscriptions, and annual passes.' },
   temple:        { label: 'Temple',        icon: Landmark,    color: 'from-[#D4A017] to-amber-600',   desc: 'Manage temple profile, deity information, and festival calendar.' },
   devotees:      { label: 'Devotees',      icon: Heart,       color: 'from-rose-500 to-pink-600',     desc: 'Devotee database, family records, and spiritual history.' },
-  elephant:      { label: 'Elephant',      icon: PawPrint,    color: 'from-emerald-500 to-teal-600',  desc: 'Manage temple elephants, mahouts, veterinary records and schedules.' },
-  'guest-house': { label: 'Guest House',   icon: BedDouble,   color: 'from-sky-500 to-cyan-600',      desc: 'Room bookings, availability calendar, and guest check-in/out.' },
-  store:         { label: 'Store',         icon: Store,       color: 'from-orange-500 to-red-500',    desc: 'Temple store inventory, prasadam sales, and product management.' },
+  'daily-schedule': { label: 'Daily Schedule', icon: CalendarDays, color: 'from-teal-500 to-emerald-600', desc: 'View and manage the daily pooja schedule, timings, and priest assignments.' },
   'fixed-deposit': { label: 'Fixed Deposit', icon: PiggyBank, color: 'from-violet-500 to-purple-600', desc: 'Track fixed deposits, maturity dates, and interest calculations.' },
 }
 
@@ -46,10 +43,9 @@ const mainMenuItems = [
   { label: 'Devotees',   icon: Heart,           href: '/temple/devotees' },
 ]
 const addonItems = [
-  { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 
 function getInitials(name = 'Temple') {

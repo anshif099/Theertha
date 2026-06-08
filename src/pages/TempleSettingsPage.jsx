@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
-  BedDouble,
   Building2,
+  CalendarDays,
   CalendarCheck,
   ClipboardList,
   FileText,
+  HandCoins,
   Hash,
   Heart,
   IndianRupee,
@@ -14,15 +15,13 @@ import {
   LogOut,
   MapPin,
   Menu,
-  PawPrint,
-  Phone,
   PiggyBank,
+  Phone,
   PlusCircle,
   ReceiptText,
   Settings,
   Sparkles,
   Star,
-  Store,
   Trash2,
   UserRoundCheck,
   UsersRound,
@@ -50,10 +49,9 @@ const mainMenuItems = [
 ]
 
 const addonItems = [
-  { label: 'Elephant', icon: PawPrint, href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House', icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store', icon: Store, href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 
 function getInitials(name = 'Temple') {
@@ -66,9 +64,6 @@ function getInitials(name = 'Temple') {
     .toUpperCase()
 }
 
-function fmtINR(n) {
-  return '₹' + Number(n).toLocaleString('en-IN')
-}
 
 
 /**
@@ -236,7 +231,7 @@ export default function TempleSettingsPage() {
   /* priests state */
   const [priests, setPriests] = useState([])
   const [loadingPriests, setLoadingPriests] = useState(true)
-  const [priestForm, setPriestForm] = useState({ name: '', salary: '', phone: '', address: '' })
+  const [priestForm, setPriestForm] = useState({ name: '', salary: '', phone: '', address: '', role: 'Priest' })
   const [priestSaving, setPriestSaving] = useState(false)
   const [priestError, setPriestError] = useState('')
   const [priestSuccess, setPriestSuccess] = useState('')
@@ -462,15 +457,16 @@ export default function TempleSettingsPage() {
     const salary = Number(priestForm.salary)
     const phone = priestForm.phone.trim()
     const address = priestForm.address.trim()
-    if (!name) { setPriestError('Priest name is required.'); return }
+    const role = priestForm.role || 'Priest'
+    if (!name) { setPriestError('Name is required.'); return }
     if (priests.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
       setPriestError(`"${name}" already exists.`); return
     }
     setPriestSaving(true); setPriestError(''); setPriestSuccess('')
     try {
-      const added = await addPriest(session.id, { name, salary, phone, address })
+      const added = await addPriest(session.id, { name, salary, phone, address, role })
       setPriests((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)))
-      setPriestForm({ name: '', salary: '', phone: '', address: '' })
+      setPriestForm({ name: '', salary: '', phone: '', address: '', role: 'Priest' })
       setPriestSuccess(`"${name}" added successfully.`)
     } catch { setPriestError('Failed to save. Try again.') }
     finally { setPriestSaving(false) }
@@ -1040,7 +1036,7 @@ export default function TempleSettingsPage() {
             </form>
           </section>
 
-          {/* ══ Priest Management Section ══ */}
+          {/* ══ Staff Management Section ══ */}
           <section className="mt-6 mb-8 rounded-xl border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
             <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-6 py-5">
               <div className="flex items-center gap-3">
@@ -1048,23 +1044,23 @@ export default function TempleSettingsPage() {
                   <UsersRound size={20} />
                 </span>
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Priest Management</h2>
-                  <p className="text-sm text-[#42516A]">Register priests with their salary, contact, and address details</p>
+                  <h2 className="font-display text-xl font-semibold">Staff Management</h2>
+                  <p className="text-sm text-[#42516A]">Register temple staff with their role, salary, contact, and address details</p>
                 </div>
               </div>
               <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
-                {priests.length} priest{priests.length !== 1 ? 's' : ''}
+                {priests.length} staff member{priests.length !== 1 ? 's' : ''}
               </span>
             </div>
 
-            {/* Add priest form */}
+            {/* Add staff form */}
             <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-5">
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Priest</h3>
-              <form onSubmit={handleAddPriest} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Staff Member</h3>
+              <form onSubmit={handleAddPriest} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {/* Name */}
                 <div className="grid gap-1.5">
                   <label htmlFor="priest-name" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
-                    <UserRoundCheck size={13} /> Priest Name
+                    <UserRoundCheck size={13} /> Staff Name
                   </label>
                   <input
                     id="priest-name"
@@ -1074,6 +1070,25 @@ export default function TempleSettingsPage() {
                     placeholder="e.g. Rajan Pillai"
                     className="w-full rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
                   />
+                </div>
+                {/* Role */}
+                <div className="grid gap-1.5">
+                  <label htmlFor="priest-role" className="flex items-center gap-1.5 text-xs font-semibold text-[#42516A]">
+                    <UsersRound size={13} /> Role
+                  </label>
+                  <select
+                    id="priest-role"
+                    value={priestForm.role}
+                    onChange={(e) => { setPriestForm((p) => ({ ...p, role: e.target.value })); setPriestError(''); setPriestSuccess('') }}
+                    className="w-full h-10 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2 text-sm font-semibold text-[#0B1F3A] outline-none transition focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
+                  >
+                    <option value="Priest">Priest</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Clerk">Clerk</option>
+                    <option value="Accountant">Accountant</option>
+                    <option value="Helper">Helper</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 {/* Salary */}
                 <div className="grid gap-1.5">
@@ -1119,7 +1134,7 @@ export default function TempleSettingsPage() {
                   />
                 </div>
                 {/* Submit spanning full row */}
-                <div className="sm:col-span-2 xl:col-span-4 flex justify-end">
+                <div className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex justify-end">
                   <button
                     id="add-priest-btn"
                     type="submit"
@@ -1127,7 +1142,7 @@ export default function TempleSettingsPage() {
                     className="flex items-center gap-2 rounded-lg bg-[#0B1F3A] px-6 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
                   >
                     <PlusCircle size={15} />
-                    {priestSaving ? 'Saving…' : 'Add Priest'}
+                    {priestSaving ? 'Saving…' : 'Add Staff Member'}
                   </button>
                 </div>
               </form>
@@ -1135,21 +1150,22 @@ export default function TempleSettingsPage() {
               {priestSuccess && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">✓ {priestSuccess}</div>}
             </div>
 
-            {/* Priests table */}
+            {/* Staff table */}
             <div className="overflow-x-auto">
               {loadingPriests ? (
-                <p className="px-6 py-8 text-sm text-[#42516A]">Loading priests…</p>
+                <p className="px-6 py-8 text-sm text-[#42516A]">Loading staff members…</p>
               ) : priests.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-10 text-center">
                   <UsersRound size={28} className="text-[#D4A017]/40" />
-                  <p className="font-semibold text-[#0B1F3A]">No priests registered yet</p>
-                  <p className="text-sm text-[#42516A]">Add priest details using the form above.</p>
+                  <p className="font-semibold text-[#0B1F3A]">No staff members registered yet</p>
+                  <p className="text-sm text-[#42516A]">Add staff details using the form above.</p>
                 </div>
               ) : (
                 <table className="w-full min-w-[640px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-[#EFE6D3] bg-[#F8F6F0] text-xs font-semibold uppercase tracking-wide text-[#42516A]">
                       <th className="px-5 py-3">Name</th>
+                      <th className="px-5 py-3">Role</th>
                       <th className="px-5 py-3">Monthly Salary</th>
                       <th className="px-5 py-3">Phone</th>
                       <th className="px-5 py-3">Address</th>
@@ -1166,6 +1182,9 @@ export default function TempleSettingsPage() {
                             </span>
                             <span className="font-semibold text-[#0B1F3A]">{p.name}</span>
                           </div>
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-[#42516A]">
+                          {p.role || 'Priest'}
                         </td>
                         <td className="px-5 py-3.5 font-semibold text-[#9C7414]">
                           {p.salary ? `₹${Number(p.salary).toLocaleString('en-IN')}` : '—'}

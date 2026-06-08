@@ -11,35 +11,11 @@ import {
   Save,
   Sparkles,
   Star,
-  Trash2,
   X,
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 
-/* ── live clock ── */
-function useClock() {
-  const [now, setNow] = useState(new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  return now
-}
-
-function formatDateTime(date) {
-  const d = date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-  const t = date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  })
-  return `${d} · ${t}`
-}
 
 function fmtINR(n) {
   return '₹' + Number(n).toLocaleString('en-IN')
@@ -111,9 +87,24 @@ function CustomItemModal({ onAdd, onClose }) {
   )
 }
 
+/* ── Time Helpers ── */
+function convert24hTo12h(time24) {
+  if (!time24) return ''
+  const [hoursStr, minutesStr] = time24.split(':')
+  let hours = parseInt(hoursStr, 10)
+  const minutes = parseInt(minutesStr, 10)
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12
+  hours = hours ? hours : 12
+  const strHours = String(hours).padStart(2, '0')
+  const strMinutes = String(minutes).padStart(2, '0')
+  return `${strHours}:${strMinutes} ${ampm}`
+}
+
+
 /* ══════════════════════════════════════════════
    Counter Dashboard Page
-══════════════════════════════════════════════ */
+   ══════════════════════════════════════════════ */
 export default function CounterDashboardPage() {
   /* read counter session */
   const [counterSession] = useState(() => {
@@ -135,6 +126,11 @@ export default function CounterDashboardPage() {
   const [paymentStatus, setPaymentStatus] = useState('Paid')
   const [foundDevotee, setFoundDevotee] = useState(null)
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [bookingTime, setBookingTime] = useState(() => {
+    const now = new Date()
+    now.setMinutes(now.getMinutes() + 10)
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  })
   const [priests, setPriests] = useState([])
   const [priestId, setPriestId] = useState('')
 
@@ -150,7 +146,84 @@ export default function CounterDashboardPage() {
   /* custom item modal */
   const [showCustom, setShowCustom] = useState(false)
 
-  const clock = useClock()
+
+  /* ── Auto Slot Scheduling Logic ── */
+  function getTodayPlus10() {
+    const now = new Date()
+    now.setMinutes(now.getMinutes() + 10)
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  }
+
+  function timeToMinutes(timeStr) {
+    if (!timeStr) return 0
+    const matches = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+    if (!matches) {
+      const parts = timeStr.split(':')
+      if (parts.length >= 2) {
+        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)
+      }
+      return 0
+    }
+    let hours = parseInt(matches[1], 10)
+    const minutes = parseInt(matches[2], 10)
+    const ampm = matches[3].toUpperCase()
+    if (ampm === 'PM' && hours < 12) hours += 12
+    if (ampm === 'AM' && hours === 12) hours = 0
+    return hours * 60 + minutes
+  }
+
+  function calculateDefaultTimeForDate(dateStr, existingReceipts = []) {
+    const today = new Date().toISOString().slice(0, 10)
+    const dateReceipts = existingReceipts.filter(r => r.bookingDate === dateStr)
+    
+    if (dateReceipts.length === 0) {
+      if (dateStr === today) {
+        return getTodayPlus10()
+      } else {
+        return "06:00"
+      }
+    } else {
+      let maxMinutes = -1
+      dateReceipts.forEach(r => {
+        if (!r.time) return
+        const mins = timeToMinutes(r.time)
+        if (mins > maxMinutes) {
+          maxMinutes = mins
+        }
+      })
+      
+      if (maxMinutes !== -1) {
+        const nextMinutes = maxMinutes + 5
+        const nextHours = Math.floor(nextMinutes / 60) % 24
+        const nextMins = nextMinutes % 60
+        const defaultTime = `${String(nextHours).padStart(2, '0')}:${String(nextMins).padStart(2, '0')}`
+        
+        if (dateStr === today) {
+          const now = new Date()
+          now.setMinutes(now.getMinutes() + 10)
+          const nowMinutes = now.getHours() * 60 + now.getMinutes()
+          if (nextMinutes < nowMinutes) {
+            return getTodayPlus10()
+          }
+        }
+        return defaultTime
+      }
+      
+      return dateStr === today ? getTodayPlus10() : "06:00"
+    }
+  }
+
+  async function updateBookingTimeForDate(dateStr) {
+    if (!counterSession?.templeId) return
+    try {
+      const existingReceipts = await loadTodayReceipts(counterSession.templeId, dateStr)
+      const calculatedTime = calculateDefaultTimeForDate(dateStr, existingReceipts)
+      setBookingTime(calculatedTime)
+    } catch (err) {
+      console.warn('Error calculating default booking time:', err)
+      setBookingTime(dateStr === new Date().toISOString().slice(0, 10) ? getTodayPlus10() : "06:00")
+    }
+  }
 
   /* shift summary states */
   const [receipts, setReceipts] = useState([])
@@ -193,7 +266,9 @@ export default function CounterDashboardPage() {
 
   /* calculate shift totals and Seva breakdown */
   const shiftStats = useMemo(() => {
-    let totalCount = receipts.length
+    let totalBookings = receipts.length
+    let paidCount = 0
+    let unpaidCount = 0
     let totalCollected = 0
     let cashTotal = 0
     let upiTotal = 0
@@ -201,7 +276,10 @@ export default function CounterDashboardPage() {
     const sevaBreakdown = {}
 
     receipts.forEach((r) => {
-      if (r.paymentStatus !== 'Unpaid') {
+      if (r.paymentStatus === 'Unpaid') {
+        unpaidCount += 1
+      } else {
+        paidCount += 1
         totalCollected += Number(r.total || 0)
         if (r.paymentMethod === 'Cash') {
           cashTotal += Number(r.total || 0)
@@ -234,7 +312,9 @@ export default function CounterDashboardPage() {
     const variance = denomPhysicalTotal - cashTotal
 
     return {
-      totalCount,
+      totalBookings,
+      paidCount,
+      unpaidCount,
       totalCollected,
       cashTotal,
       upiTotal,
@@ -284,7 +364,9 @@ export default function CounterDashboardPage() {
           <div class="divider"></div>
           
           <table>
-            <tr><td>Total Receipts:</td><td class="right bold">${shiftStats.totalCount}</td></tr>
+            <tr><td>Total Bookings:</td><td class="right bold">${shiftStats.totalBookings}</td></tr>
+            <tr><td>Paid Bookings:</td><td class="right bold">${shiftStats.paidCount}</td></tr>
+            <tr><td>Unpaid Bookings:</td><td class="right bold">${shiftStats.unpaidCount}</td></tr>
             <tr><td>Total Collected:</td><td class="right bold">₹${Number(shiftStats.totalCollected).toLocaleString('en-IN')}</td></tr>
             <tr><td>Cash Collection:</td><td class="right bold">₹${Number(shiftStats.cashTotal).toLocaleString('en-IN')}</td></tr>
             <tr><td>UPI Collection:</td><td class="right bold">₹${Number(shiftStats.upiTotal).toLocaleString('en-IN')}</td></tr>
@@ -341,7 +423,7 @@ export default function CounterDashboardPage() {
         })
         .catch(() => setFoundDevotee(null))
     } else {
-      setFoundDevotee(null)
+      Promise.resolve().then(() => setFoundDevotee(null))
     }
   }, [mobile, counterSession])
 
@@ -369,16 +451,21 @@ export default function CounterDashboardPage() {
 
     Promise.all([loadStars(templeId), loadQuickItems(templeId), loadPriests(templeId)])
       .then(([starsData, itemsData, priestsData]) => {
+        const priestsOnly = priestsData.filter((p) => !p.role || p.role === 'Priest')
         setStars(starsData)
         setQuickItems(itemsData)
-        setPriests(priestsData)
+        setPriests(priestsOnly)
         if (starsData.length > 0) setStarId(starsData[0].id)
-        if (priestsData.length > 0) setPriestId(priestsData[0].id)
+        if (priestsOnly.length > 0) setPriestId(priestsOnly[0].id)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
 
-    refreshReceipts()
+    Promise.resolve().then(() => {
+      refreshReceipts()
+      updateBookingTimeForDate(new Date().toISOString().slice(0, 10))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [counterSession])
 
   /* totals */
@@ -428,7 +515,6 @@ export default function CounterDashboardPage() {
   function buildReceiptPayload() {
     const selectedStar = stars.find((s) => s.id === starId)
     const selectedPriest = priests.find((p) => p.id === priestId)
-    const now = new Date()
     return {
       receiptNo,
       counterId:     counterSession.counterId,
@@ -448,7 +534,7 @@ export default function CounterDashboardPage() {
       paymentStatus,
       bookingDate,
       date: formatSelectedDate(bookingDate),
-      time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      time: convert24hTo12h(bookingTime),
       priestId,
       priestName:    selectedPriest?.name || '',
     }
@@ -465,7 +551,9 @@ export default function CounterDashboardPage() {
     setPaymentMethod('Cash')
     setPaymentStatus('Paid')
     setFoundDevotee(null)
-    setBookingDate(new Date().toISOString().slice(0, 10))
+    const today = new Date().toISOString().slice(0, 10)
+    setBookingDate(today)
+    updateBookingTimeForDate(today)
     setPriestId(priests[0]?.id || '')
     setReceiptNo('Generating…')
     getNextReceiptNo(counterSession.templeId, counterSession.counterId)
@@ -597,13 +685,13 @@ export default function CounterDashboardPage() {
             Receipt Details
           </p>
 
-          {/* Receipt No + Date&Time */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Receipt No + Date & Time */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
                 Receipt No.
               </label>
-              <div className="flex h-10 items-center rounded-lg border border-white/10 bg-white/5 px-3 font-mono text-sm font-semibold text-[#F7D77C]">
+              <div className="flex h-10 items-center rounded-lg border border-white/10 bg-white/5 px-3 font-mono text-sm font-semibold text-[#F7D77C] overflow-hidden whitespace-nowrap text-ellipsis">
                 {receiptNo}
               </div>
             </div>
@@ -615,7 +703,22 @@ export default function CounterDashboardPage() {
                 id="booking-date"
                 type="date"
                 value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
+                onChange={(e) => {
+                  setBookingDate(e.target.value)
+                  updateBookingTimeForDate(e.target.value)
+                }}
+                className="w-full h-10 rounded-lg border border-white/10 bg-[#07172D] px-3 text-sm font-semibold text-[#F8F6F0] outline-none transition focus:border-[#D4A017]/60 focus:ring-1 focus:ring-[#D4A017]/20"
+              />
+            </div>
+            <div>
+              <label htmlFor="booking-time" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
+                Booking Time
+              </label>
+              <input
+                id="booking-time"
+                type="time"
+                value={bookingTime}
+                onChange={(e) => setBookingTime(e.target.value)}
                 className="w-full h-10 rounded-lg border border-white/10 bg-[#07172D] px-3 text-sm font-semibold text-[#F8F6F0] outline-none transition focus:border-[#D4A017]/60 focus:ring-1 focus:ring-[#D4A017]/20"
               />
             </div>
@@ -1021,9 +1124,18 @@ export default function CounterDashboardPage() {
                 <h3 className="text-xs font-bold uppercase tracking-widest text-[#D4A017]/70">Collection Status</h3>
                 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  {/* Total Bookings */}
                   <div className="rounded-xl border border-white/5 bg-[#0B1F3A] p-5">
-                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">Total Receipts</p>
-                    <p className="mt-1.5 text-2xl font-black text-[#F8F6F0]">{shiftStats.totalCount}</p>
+                    <p className="text-xs font-semibold text-[#EFE6D3]/50 uppercase tracking-wider">Total Bookings</p>
+                    <p className="mt-1.5 text-2xl font-black text-[#F8F6F0]">{shiftStats.totalBookings}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/12 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                        ✓ Paid: {shiftStats.paidCount}
+                      </span>
+                      <span className="flex items-center gap-1 rounded-full bg-rose-500/12 border border-rose-500/20 px-2.5 py-0.5 text-[10px] font-bold text-rose-400">
+                        ✗ Unpaid: {shiftStats.unpaidCount}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="rounded-xl border border-[#D4A017]/18 bg-[#0B1F3A] p-5">

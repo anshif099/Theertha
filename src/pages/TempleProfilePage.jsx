@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
-  BedDouble,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -11,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   Flame,
+  HandCoins,
   Heart,
   Landmark,
   LayoutDashboard,
@@ -18,13 +18,11 @@ import {
   MapPin,
   Menu,
   Package,
-  PawPrint,
   PiggyBank,
   PlusCircle,
   ReceiptText,
   Settings,
   Shield,
-  Store,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -253,10 +251,9 @@ const mainMenuItems = [
   { label: 'Devotees',   icon: Heart,           href: '/temple/devotees' },
 ]
 const addonItems = [
-  { label: 'Elephant',      icon: PawPrint,  href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House',   icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store',         icon: Store,     href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 
 function getInitials(name = 'Temple') {
@@ -574,10 +571,10 @@ export default function TempleProfilePage() {
                 <ProfileField label="Last updated" value={temple?.updatedAt ? fmtDate(temple.updatedAt) : '—'} />
               </div>
 
-              {/* Priest strip */}
+              {/* Staff strip */}
               {priests.length > 0 && (
                 <div className="mt-6">
-                  <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#9A9A9A]">Priests on record</p>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#9A9A9A]">Staff on record</p>
                   <div className="flex flex-wrap gap-3">
                     {priests.map((p) => (
                       <div key={p.id} className="flex items-center gap-2 rounded-lg border border-[#EFE6D3] bg-[#F8F6F0] px-3 py-2">
@@ -586,7 +583,7 @@ export default function TempleProfilePage() {
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-[#0B1F3A]">{p.name}</p>
-                          {p.phone && <p className="text-xs text-[#42516A]">{p.phone}</p>}
+                          <p className="text-[10px] font-bold text-[#9C7414] uppercase tracking-wider">{p.role || 'Priest'}</p>
                         </div>
                       </div>
                     ))}

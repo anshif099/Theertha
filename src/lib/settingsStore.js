@@ -230,13 +230,14 @@ export async function loadPriests(templeId) {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export async function addPriest(templeId, { name, salary, phone, address }) {
+export async function addPriest(templeId, { name, salary, phone, address, role }) {
   const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/priests`))
   const record = {
     name: name.trim(),
     salary: Number(salary) || 0,
     phone: phone.trim(),
     address: address.trim(),
+    role: role || 'Priest',
     createdAt: new Date().toISOString(),
   }
   await set(newRef, record)
@@ -308,8 +309,50 @@ export async function deleteDevotee(templeId, mobile) {
   await remove(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/devotees/${mobile.trim()}`))
 }
 
+/* ══════════════════════════════════════════════
+   Donations / Sambavana
+══════════════════════════════════════════════ */
 
+export async function getNextDonationNo(templeId) {
+  const seqRef = ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/donationSeq`)
+  let newSeq = 1
+  await runTransaction(seqRef, (current) => {
+    newSeq = (current || 0) + 1
+    return newSeq
+  })
+  const year = new Date().getFullYear()
+  return `DON-${year}-${String(newSeq).padStart(5, '0')}`
+}
 
+export async function saveDonation(templeId, donation) {
+  const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/donations`))
+  const record = { ...donation, id: newRef.key, createdAt: new Date().toISOString() }
+  await set(newRef, record)
+  return record
+}
 
+export async function loadDonations(templeId) {
+  const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/donations`))
+  if (!snapshot.exists()) return []
+  const val = snapshot.val()
+  return Object.entries(val)
+    .filter(([, d]) => d && typeof d === 'object')
+    .map(([id, d]) => ({ id, ...d }))
+    .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0))
+}
+
+export async function updateDonation(templeId, donationId, updatedFields) {
+  const donRef = ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/donations/${donationId}`)
+  const snap = await get(donRef)
+  if (!snap.exists()) return null
+  const existing = snap.val()
+  const updated = { ...existing, ...updatedFields, updatedAt: new Date().toISOString() }
+  await set(donRef, updated)
+  return updated
+}
+
+export async function deleteDonation(templeId, donationId) {
+  await remove(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/donations/${donationId}`))
+}
 
 

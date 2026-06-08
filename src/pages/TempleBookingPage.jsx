@@ -1,21 +1,20 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
-  BedDouble,
   Building2,
+  CalendarDays,
   CalendarCheck,
   ClipboardList,
   FileText,
+  HandCoins,
   Heart,
   IndianRupee,
   Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
-  PawPrint,
   PiggyBank,
   ReceiptText,
   Settings,
-  Store,
   UsersRound,
   WalletCards,
   X,
@@ -47,10 +46,9 @@ const mainMenuItems = [
 ]
 
 const addonItems = [
-  { label: 'Elephant', icon: PawPrint, href: '/temple/under-development?f=elephant' },
-  { label: 'Guest House', icon: BedDouble, href: '/temple/under-development?f=guest-house' },
-  { label: 'Store', icon: Store, href: '/temple/under-development?f=store' },
-  { label: 'Fixed Deposit', icon: PiggyBank, href: '/temple/fixed-deposit' },
+  { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+  { label: 'Donation', icon: HandCoins, href: '/temple/donations' },
+  { label: 'Fixed Deposit',  icon: PiggyBank,    href: '/temple/fixed-deposit' },
 ]
 
 const SEVAS = [
