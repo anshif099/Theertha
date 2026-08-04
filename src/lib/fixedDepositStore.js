@@ -4,29 +4,43 @@ import { saveAccountTransaction } from './settingsStore.js'
 
 const DB = 'registeredTemples'
 
-/**
- * Fetches all fixed deposits for a specific temple from the Firebase database.
- * @param {string} templeId - The ID of the registered temple.
- * @returns {Promise<Array>} List of fixed deposits sorted by joinedAt descending.
- */
-export async function loadFixedDeposits(templeId) {
-  const snap = await get(ref(realtimeDb, `${DB}/${templeId}/fixedDeposits`))
-  if (!snap.exists()) return []
-  const val = snap.val()
-  return Object.entries(val)
-    .filter(([, fd]) => fd && typeof fd === 'object')
-    .map(([id, fd]) => ({ id, ...fd }))
-    .sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0))
+function getLocalData(key, fallback = []) {
+  try {
+    const val = localStorage.getItem(key)
+    return val ? JSON.parse(val) : fallback
+  } catch {
+    return fallback
+  }
 }
 
-/**
- * Registers a new devotee fixed deposit. Saves record and automatically logs credit in accounts.
- * @param {string} templeId - The ID of the registered temple.
- * @param {Object} data - Devotee deposit details.
- * @returns {Promise<Object>} The registered record.
- */
+function setLocalData(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data))
+  } catch {
+    // ignore
+  }
+}
+
+export async function loadFixedDeposits(templeId) {
+  const localKey = `theertha-fds-${templeId}`
+  try {
+    const snap = await get(ref(realtimeDb, `${DB}/${templeId}/fixedDeposits`))
+    if (!snap.exists()) return getLocalData(localKey, [])
+    const val = snap.val()
+    const list = Object.entries(val)
+      .filter(([, fd]) => fd && typeof fd === 'object')
+      .map(([id, fd]) => ({ id, ...fd }))
+      .sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0))
+    setLocalData(localKey, list)
+    return list
+  } catch (error) {
+    console.warn('Unable to load fixed deposits from DB:', error)
+    return getLocalData(localKey, [])
+  }
+}
+
 export async function registerFixedDeposit(templeId, { devoteeName, amount, purpose }) {
-  const newRef = push(ref(realtimeDb, `${DB}/${templeId}/fixedDeposits`))
+  const localKey = `theertha-fds-${templeId}`
   const joinedAt = new Date().toISOString()
   const record = {
     devoteeName: devoteeName.trim(),
@@ -35,9 +49,19 @@ export async function registerFixedDeposit(templeId, { devoteeName, amount, purp
     joinedAt,
     status: 'Active',
   }
-  await set(newRef, record)
+  let newId = `fd-${Date.now()}`
+  try {
+    const newRef = push(ref(realtimeDb, `${DB}/${templeId}/fixedDeposits`))
+    newId = newRef.key || newId
+    await set(newRef, { ...record, id: newId })
+  } catch (error) {
+    console.warn('Unable to register fixed deposit on DB:', error)
+  }
 
-  // Auto post credit transaction to the Accounts ledger!
+  const registered = { id: newId, ...record }
+  const local = getLocalData(localKey, [])
+  setLocalData(localKey, [registered, ...local.filter((f) => f.id !== newId)])
+
   const year = new Date().getFullYear()
   const randomNo = Math.floor(100 + Math.random() * 900)
   const voucherNo = `FD-${year}-${randomNo}`
@@ -52,5 +76,5 @@ export async function registerFixedDeposit(templeId, { devoteeName, amount, purp
     status: 'Posted',
   })
 
-  return { id: newRef.key, ...record }
+  return registered
 }
