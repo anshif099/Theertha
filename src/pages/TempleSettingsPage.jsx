@@ -383,7 +383,8 @@ export default function TempleSettingsPage() {
       )
       setForm({ number: '', name: '' })
       setSuccessMsg(`Counter ${num} added — Login ID: ${autoLoginId}`)
-    } catch {
+    } catch (err) {
+      console.error('Failed to add counter:', err)
       setFormError('Failed to save counter. Please try again.')
     } finally {
       setSaving(false)
