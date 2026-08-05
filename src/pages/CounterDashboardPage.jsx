@@ -1467,27 +1467,26 @@ export default function CounterDashboardPage() {
             <Save size={15} />
             Save draft
           </button>
-          {paymentStatus === 'Unpaid' ? (
+          {paymentStatus === 'Unpaid' && (
             <button
               type="button"
               onClick={handleConfirmReceipt}
               disabled={cartItems.length === 0}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition hover:bg-emerald-500 disabled:opacity-50 outline-none"
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition hover:bg-emerald-500 disabled:opacity-50 outline-none"
             >
               <CheckCircle2 size={15} />
-              Confirm receipt
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={cartItems.length === 0}
-              className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50 outline-none"
-            >
-              <Printer size={15} />
-              Print receipt
+              Save Unpaid
             </button>
           )}
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={cartItems.length === 0}
+            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50 outline-none"
+          >
+            <Printer size={15} />
+            {paymentStatus === 'Unpaid' ? 'Print Unpaid Receipt' : 'Print receipt'}
+          </button>
         </div>
       </footer>
 
