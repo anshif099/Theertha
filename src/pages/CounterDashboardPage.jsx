@@ -569,6 +569,14 @@ export default function CounterDashboardPage() {
     setCartItems((prev) => [...prev, { ...item, qty: 1 }])
   }
 
+  function formatSelectedDate(dateStr) {
+    if (!dateStr) return ''
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return dateStr
+    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    return dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+  }
+
   function convert24hTo12h(time24) {
     if (!time24) return '06:00 AM'
     const [hStr, mStr] = time24.split(':')
