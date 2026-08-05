@@ -155,13 +155,18 @@ export default function TempleBookingPage() {
 
   /* Repeat Dates Recalculation in New Booking Form */
   useEffect(() => {
-    if (isRepeatBooking && starName && bookingDateInput) {
-      const dates = getRepeatingNakshatraDates(starName, bookingDateInput, repeatMonths)
+    if (isRepeatBooking && bookingDateInput) {
+      let dates = []
+      if (repeatMode === 'date') {
+        dates = getRepeatingFixedDates(bookingDateInput, repeatMonths)
+      } else {
+        dates = getRepeatingNakshatraDates(starName, bookingDateInput, repeatMonths)
+      }
       setRepeatDates(dates.map((d) => ({ ...d, selected: true })))
     } else {
       setRepeatDates([])
     }
-  }, [isRepeatBooking, starName, bookingDateInput, repeatMonths])
+  }, [isRepeatBooking, repeatMode, starName, bookingDateInput, repeatMonths])
 
   function toggleRepeatDate(idx) {
     setRepeatDates((prev) =>
@@ -977,14 +982,14 @@ export default function TempleBookingPage() {
                   </div>
                 </div>
 
-                {/* Multi-Date Repeating Nakshatra Booking Section */}
+                {/* Multi-Date Repeating Booking Section */}
                 <div className="rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/90 p-4 space-y-3 shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Repeat size={16} className="text-[#F7D77C]" />
                       <div>
-                        <span className="text-xs font-bold text-white block">Multi-Date Repeat Booking by Nakshatra</span>
-                        <span className="text-[10px] text-[#EFE6D3]/60">Auto-calculate dates matching {starName} from Prokerala Panchangam</span>
+                        <span className="text-xs font-bold text-white block">Multi-Date Repeat Booking</span>
+                        <span className="text-[10px] text-[#EFE6D3]/60">Schedule monthly repeating poojas by Fixed Date or Nakshatra</span>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -1000,6 +1005,39 @@ export default function TempleBookingPage() {
 
                   {isRepeatBooking && (
                     <div className="space-y-3 pt-3 border-t border-white/10 animate-fadeIn">
+                      {/* Repeat Mode Selector */}
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
+                          Repeat Schedule Type
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRepeatMode('nakshatra')}
+                            className={`rounded-lg py-2 px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 outline-none ${
+                              repeatMode === 'nakshatra'
+                                ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                                : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                            }`}
+                          >
+                            <Star size={13} />
+                            By Nakshatra (Panchang)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRepeatMode('date')}
+                            className={`rounded-lg py-2 px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 outline-none ${
+                              repeatMode === 'date'
+                                ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                                : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                            }`}
+                          >
+                            <CalendarDays size={13} />
+                            By Monthly Date (e.g. {new Date(bookingDateInput).getDate() || 6}th)
+                          </button>
+                        </div>
+                      </div>
+
                       <div>
                         <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
                           Repeat Duration / Period

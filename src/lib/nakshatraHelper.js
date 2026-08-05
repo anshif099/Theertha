@@ -199,3 +199,46 @@ export function getRepeatingNakshatraDates(starInput, startDateStr, monthCount =
 
   return results;
 }
+
+/**
+ * Calculates repeating dates based on fixed day of month (e.g. every month on the 6th day).
+ * @param {string} startDateStr - YYYY-MM-DD starting date
+ * @param {number} monthCount - Number of months (e.g. 1, 3, 6, 12)
+ * @returns {Array<{ date: string, formattedDate: string, monthName: string, monthIndex: number }>}
+ */
+export function getRepeatingFixedDates(startDateStr, monthCount = 6) {
+  const start = startDateStr ? new Date(startDateStr) : new Date();
+  const fixedDay = start.getDate();
+  const currentYear = start.getFullYear();
+  const currentMonth = start.getMonth(); // 0-indexed
+
+  const results = [];
+
+  for (let m = 0; m < monthCount; m++) {
+    const targetY = currentYear + Math.floor((currentMonth + m) / 12);
+    const targetM = (currentMonth + m) % 12; // 0-indexed
+
+    const totalDaysInMonth = new Date(targetY, targetM + 1, 0).getDate();
+    const actualDay = Math.min(fixedDay, totalDaysInMonth);
+
+    const dateStr = `${targetY}-${String(targetM + 1).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
+    const dObj = new Date(targetY, targetM, actualDay);
+
+    const formattedDate = dObj.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    const monthName = dObj.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+    results.push({
+      date: dateStr,
+      formattedDate,
+      monthName,
+      monthIndex: m + 1
+    });
+  }
+
+  return results;
+}

@@ -151,20 +151,26 @@ export default function CounterDashboardPage() {
 
   /* multi-date repeat booking state */
   const [isRepeatBooking, setIsRepeatBooking] = useState(false)
+  const [repeatMode, setRepeatMode] = useState('nakshatra') // 'nakshatra' (Star-based) or 'date' (Fixed Monthly Day)
   const [repeatMonths, setRepeatMonths] = useState(6)
   const [repeatDates, setRepeatDates] = useState([])
 
-  /* Recalculate repeat dates whenever star, bookingDate, repeatMonths or isRepeatBooking changes */
+  /* Recalculate repeat dates whenever star, bookingDate, repeatMonths, repeatMode or isRepeatBooking changes */
   useEffect(() => {
-    if (isRepeatBooking && starId && bookingDate) {
-      const selectedStar = stars.find((s) => s.id === starId) || ALL_27_NAKSHATRAS[0]
-      const targetStarName = selectedStar ? selectedStar.name : 'Ashwathi'
-      const dates = getRepeatingNakshatraDates(targetStarName, bookingDate, repeatMonths)
+    if (isRepeatBooking && bookingDate) {
+      let dates = []
+      if (repeatMode === 'date') {
+        dates = getRepeatingFixedDates(bookingDate, repeatMonths)
+      } else {
+        const selectedStar = stars.find((s) => s.id === starId) || ALL_27_NAKSHATRAS[0]
+        const targetStarName = selectedStar ? selectedStar.name : 'Ashwathi'
+        dates = getRepeatingNakshatraDates(targetStarName, bookingDate, repeatMonths)
+      }
       setRepeatDates(dates.map((d) => ({ ...d, selected: true })))
     } else {
       setRepeatDates([])
     }
-  }, [isRepeatBooking, starId, bookingDate, repeatMonths, stars])
+  }, [isRepeatBooking, repeatMode, starId, bookingDate, repeatMonths, stars])
 
   function toggleRepeatDate(index) {
     setRepeatDates((prev) =>
@@ -907,14 +913,14 @@ export default function CounterDashboardPage() {
             </div>
           </div>
 
-          {/* ══ Multi-Date / Repeating Nakshatra Booking Options ══ */}
+          {/* ══ Multi-Date / Repeating Booking Options ══ */}
           <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/80 p-4 space-y-3 shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Repeat size={16} className="text-[#F7D77C]" />
                 <div>
-                  <span className="text-xs font-bold text-[#F8F6F0] block">Repeat Booking by Nakshatra</span>
-                  <span className="text-[10px] text-[#EFE6D3]/60">Auto-calculated dates from Prokerala Panchangam</span>
+                  <span className="text-xs font-bold text-[#F8F6F0] block">Multi-Date Repeat Booking</span>
+                  <span className="text-[10px] text-[#EFE6D3]/60">Schedule monthly repeating poojas by Date or Nakshatra</span>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -930,6 +936,39 @@ export default function CounterDashboardPage() {
 
             {isRepeatBooking && (
               <div className="space-y-3 pt-3 border-t border-white/10 animate-fadeIn">
+                {/* Mode selector: Nakshatra vs Fixed Monthly Date */}
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
+                    Repeat Schedule Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRepeatMode('nakshatra')}
+                      className={`rounded-lg py-2 px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 outline-none ${
+                        repeatMode === 'nakshatra'
+                          ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                          : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                      }`}
+                    >
+                      <Star size={13} />
+                      By Nakshatra (Panchang)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRepeatMode('date')}
+                      className={`rounded-lg py-2 px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 outline-none ${
+                        repeatMode === 'date'
+                          ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                          : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                      }`}
+                    >
+                      <CalendarDays size={13} />
+                      By Monthly Date (e.g. {new Date(bookingDate).getDate() || 6}th)
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
                     Repeat Duration / Period
