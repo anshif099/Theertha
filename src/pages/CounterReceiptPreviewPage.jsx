@@ -192,6 +192,26 @@ export default function CounterReceiptPreviewPage() {
               )}
             </div>
 
+            {/* Additional Devotees Breakdown */}
+            {receipt.additionalPersons && receipt.additionalPersons.length > 0 && (
+              <>
+                <div className="my-2.5 border-b border-dashed border-gray-400" />
+                <div className="text-[10px] font-black uppercase tracking-wide text-gray-800 mb-1">
+                  Additional Devotees Breakdown ({receipt.additionalPersons.length}):
+                </div>
+                <div className="grid gap-1 bg-gray-50 p-2 rounded border border-gray-200 text-[10px] text-gray-800">
+                  {receipt.additionalPersons.map((p, idx) => (
+                    <div key={idx} className="flex justify-between items-center border-b border-gray-200/50 pb-1 last:border-0 last:pb-0">
+                      <span className="font-bold">
+                        P{p.personNo || idx + 2}: {p.name} {p.starName ? `(${p.starName})` : ''}
+                      </span>
+                      <span className="font-mono text-[9px] text-gray-600">{p.date}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="my-3 border-b border-dashed border-gray-400" />
 
             {/* Table Header */}

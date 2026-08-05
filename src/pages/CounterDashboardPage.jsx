@@ -13,6 +13,7 @@ import {
   Save,
   Sparkles,
   Star,
+  UserPlus,
   X,
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
@@ -177,6 +178,39 @@ export default function CounterDashboardPage() {
       prev.map((item, idx) => (idx === index ? { ...item, selected: !item.selected } : item)),
     )
   }
+
+  /* Total Quantity across all items in cart */
+  const totalCartQty = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
+  }, [cartItems])
+
+  /* Additional persons when QTY >= 2 */
+  const [additionalPersons, setAdditionalPersons] = useState([])
+
+  /* Auto-sync additional persons rows when totalCartQty changes */
+  useEffect(() => {
+    if (totalCartQty >= 2) {
+      const needed = totalCartQty - 1 // 1 for primary devotee + (totalCartQty - 1) for extra persons
+      setAdditionalPersons((prev) => {
+        const next = [...prev]
+        if (next.length < needed) {
+          for (let i = next.length; i < needed; i++) {
+            next.push({
+              id: Date.now() + i + Math.random(),
+              name: '',
+              starId: starId || (stars[0]?.id || ''),
+              date: bookingDate
+            })
+          }
+        } else if (next.length > needed) {
+          next.length = needed
+        }
+        return next
+      })
+    } else {
+      setAdditionalPersons([])
+    }
+  }, [totalCartQty, bookingDate, starId, stars])
 
 
   /* ── Auto Slot Scheduling Logic ── */
@@ -547,6 +581,17 @@ export default function CounterDashboardPage() {
   function buildReceiptPayload() {
     const selectedStar = stars.find((s) => s.id === starId)
     const selectedPriest = priests.find((p) => p.id === priestId)
+
+    const formattedAdditionalPersons = additionalPersons.map((p, idx) => {
+      const sObj = stars.find((s) => s.id === p.starId) || ALL_27_NAKSHATRAS[0]
+      return {
+        personNo: idx + 2,
+        name: p.name.trim() || `Person #${idx + 2}`,
+        starName: sObj ? sObj.name : '',
+        date: p.date || bookingDate
+      }
+    })
+
     return {
       receiptNo,
       counterId:     counterSession.counterId,
@@ -559,6 +604,7 @@ export default function CounterDashboardPage() {
       devoteeName,
       mobile,
       starName:      selectedStar?.name || '',
+      additionalPersons: formattedAdditionalPersons,
       remarks,
       items:         cartItems.map((c) => ({ name: c.name, amount: c.amount, qty: c.qty })),
       total,
@@ -912,6 +958,110 @@ export default function CounterDashboardPage() {
               )}
             </div>
           </div>
+
+          {/* ══ Additional Devotees / Family Members Section (Triggered when QTY >= 2 or when added) ══ */}
+          {(totalCartQty >= 2 || additionalPersons.length > 0) && (
+            <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/90 p-4 space-y-3 shadow-md animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <UserPlus size={16} className="text-[#F7D77C]" />
+                  <div>
+                    <span className="text-xs font-bold text-[#F8F6F0] block">
+                      Additional Persons Details (Total Qty: {totalCartQty})
+                    </span>
+                    <span className="text-[10px] text-[#EFE6D3]/60">
+                      Enter Name, Date & Nakshatra for Person #2 to #{totalCartQty}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdditionalPersons((prev) => [
+                      ...prev,
+                      { id: Date.now() + Math.random(), name: '', starId: starId || (stars[0]?.id || ''), date: bookingDate }
+                    ])
+                  }}
+                  className="flex items-center gap-1 rounded-lg bg-[#D4A017]/20 border border-[#D4A017]/40 px-2.5 py-1 text-[11px] font-bold text-[#F7D77C] hover:bg-[#D4A017] hover:text-[#07172D] transition"
+                >
+                  <Plus size={12} />
+                  + Add Person
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#D4A017]/30">
+                {additionalPersons.map((p, idx) => (
+                  <div key={p.id || idx} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#F7D77C]">Person #{idx + 2} Details</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdditionalPersons((prev) => prev.filter((_, i) => i !== idx))
+                        }}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 transition flex items-center gap-0.5"
+                      >
+                        <X size={12} /> Remove
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Name</label>
+                        <input
+                          type="text"
+                          value={p.name}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setAdditionalPersons((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
+                            )
+                          }}
+                          placeholder={`Person #${idx + 2} Name`}
+                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Star (Nakshatra)</label>
+                        <select
+                          value={p.starId}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setAdditionalPersons((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, starId: val } : item))
+                            )
+                          }}
+                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
+                        >
+                          {stars.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Date</label>
+                        <input
+                          type="date"
+                          value={p.date}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setAdditionalPersons((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, date: val } : item))
+                            )
+                          }}
+                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ══ Multi-Date / Repeating Booking Options ══ */}
           <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/80 p-4 space-y-3 shadow-md">
