@@ -116,6 +116,7 @@ export default function TempleBookingPage() {
 
   /* Repeat Booking Controls in Form */
   const [isRepeatBooking, setIsRepeatBooking] = useState(false)
+  const [repeatMode, setRepeatMode] = useState('nakshatra')
   const [repeatMonths, setRepeatMonths] = useState(6)
   const [repeatDates, setRepeatDates] = useState([])
 
