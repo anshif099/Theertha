@@ -778,61 +778,37 @@ export default function TempleSettingsPage() {
                 </span>
                 <div>
                   <h2 className="font-display text-xl font-semibold">Stars (Nakshatra)</h2>
-                  <p className="text-sm text-[#42516A]">Add stars that appear in the counter receipt dropdown</p>
+                  <p className="text-sm text-[#42516A]">All 27 standard Nakshatras are pre-loaded & active for Counter & Devotee bookings</p>
                 </div>
               </div>
-              <span className="rounded-full bg-[#D4A017]/12 px-3 py-1 text-xs font-bold text-[#9C7414]">
-                {stars.length} star{stars.length !== 1 ? 's' : ''}
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                All {stars.length || 27} Nakshatras Pre-loaded
               </span>
             </div>
 
-            {/* Add star form */}
-            <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-5">
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#9C7414]">Add New Star</h3>
-              <form onSubmit={handleAddStar} className="flex gap-3">
-                <input
-                  id="star-name-input"
-                  type="text"
-                  value={starInput}
-                  onChange={(e) => { setStarInput(e.target.value); setStarError(''); setStarSuccess('') }}
-                  placeholder="e.g. Karthika"
-                  className="flex-1 rounded-lg border border-[#D4A017]/30 bg-white px-3 py-2.5 text-sm font-semibold text-[#0B1F3A] outline-none transition placeholder:text-[#42516A]/40 focus:border-[#D4A017] focus:ring-2 focus:ring-[#D4A017]/20"
-                />
-                <button
-                  type="submit"
-                  disabled={starSaving}
-                  className="flex items-center gap-2 rounded-lg bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-[#F8F6F0] transition hover:bg-[#123761] disabled:opacity-50"
-                >
-                  <PlusCircle size={15} />
-                  {starSaving ? 'Saving…' : 'Add'}
-                </button>
-              </form>
-              {starError && <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700"><AlertCircle size={14} />{starError}</div>}
-              {starSuccess && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">✓ {starSuccess}</div>}
+            {/* Preloaded Info Banner */}
+            <div className="border-b border-[#EFE6D3] bg-[#F8F6F0]/60 px-6 py-4 flex items-center justify-between">
+              <p className="text-xs font-semibold text-[#42516A]">
+                ✓ All 27 Malayalam / Vedic Nakshatras (Ashwathi to Revathi) are automatically available in Counter Booking and calendar repeating bookings.
+              </p>
             </div>
 
             {/* Stars list */}
             <div className="p-6">
               {loadingStars ? (
-                <p className="text-sm text-[#42516A]">Loading…</p>
+                <p className="text-sm text-[#42516A]">Loading stars…</p>
               ) : stars.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
                   <Star size={28} className="text-[#D4A017]/40" />
-                  <p className="text-sm text-[#42516A]">No stars added yet.</p>
+                  <p className="text-sm text-[#42516A]">Loading pre-loaded Nakshatras…</p>
                 </div>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                  {stars.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-[#D4A017]/18 bg-[#F8F6F0] px-4 py-2.5">
-                      <span className="text-sm font-semibold text-[#0B1F3A]">{s.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteStar(s.id)}
-                        className="ml-3 flex h-7 w-7 items-center justify-center rounded-md text-red-400 transition hover:bg-red-50 hover:text-red-600"
-                        aria-label={`Delete ${s.name}`}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                  {stars.map((s, idx) => (
+                    <div key={s.id || idx} className="flex items-center justify-between rounded-lg border border-[#D4A017]/18 bg-[#F8F6F0] px-4 py-2.5">
+                      <span className="text-xs font-bold text-[#9C7414] mr-2">#{idx + 1}</span>
+                      <span className="text-sm font-semibold text-[#0B1F3A] truncate">{s.name}</span>
+                      <span className="ml-auto flex h-2 w-2 rounded-full bg-emerald-500" title="Pre-loaded & active" />
                     </div>
                   ))}
                 </div>

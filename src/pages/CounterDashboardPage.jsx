@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  CalendarDays,
   CheckCircle2,
   ClipboardList,
   IndianRupee,
@@ -8,6 +9,7 @@ import {
   Plus,
   Printer,
   ReceiptText,
+  Repeat,
   Save,
   Sparkles,
   Star,
@@ -15,6 +17,7 @@ import {
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
+import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
 
 
 function fmtINR(n) {
@@ -145,6 +148,29 @@ export default function CounterDashboardPage() {
 
   /* custom item modal */
   const [showCustom, setShowCustom] = useState(false)
+
+  /* multi-date repeat booking state */
+  const [isRepeatBooking, setIsRepeatBooking] = useState(false)
+  const [repeatMonths, setRepeatMonths] = useState(6)
+  const [repeatDates, setRepeatDates] = useState([])
+
+  /* Recalculate repeat dates whenever star, bookingDate, repeatMonths or isRepeatBooking changes */
+  useEffect(() => {
+    if (isRepeatBooking && starId && bookingDate) {
+      const selectedStar = stars.find((s) => s.id === starId) || ALL_27_NAKSHATRAS[0]
+      const targetStarName = selectedStar ? selectedStar.name : 'Ashwathi'
+      const dates = getRepeatingNakshatraDates(targetStarName, bookingDate, repeatMonths)
+      setRepeatDates(dates.map((d) => ({ ...d, selected: true })))
+    } else {
+      setRepeatDates([])
+    }
+  }, [isRepeatBooking, starId, bookingDate, repeatMonths, stars])
+
+  function toggleRepeatDate(index) {
+    setRepeatDates((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, selected: !item.selected } : item)),
+    )
+  }
 
 
   /* ── Auto Slot Scheduling Logic ── */
@@ -551,6 +577,9 @@ export default function CounterDashboardPage() {
     setPaymentMethod('Cash')
     setPaymentStatus('Paid')
     setFoundDevotee(null)
+    setIsRepeatBooking(false)
+    setRepeatMonths(6)
+    setRepeatDates([])
     const today = new Date().toISOString().slice(0, 10)
     setBookingDate(today)
     updateBookingTimeForDate(today)
@@ -563,9 +592,25 @@ export default function CounterDashboardPage() {
 
   async function handleSaveDraft() {
     if (cartItems.length === 0) return
-    const data = buildReceiptPayload()
+    const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
+    
     try {
-      await saveReceipt(counterSession.templeId, data)
+      if (isRepeatBooking && activeRepeatDates.length > 0) {
+        for (const rItem of activeRepeatDates) {
+          const nextNo = await getNextReceiptNo(counterSession.templeId, counterSession.counterId)
+          const data = {
+            ...buildReceiptPayload(),
+            receiptNo: nextNo,
+            bookingDate: rItem.date,
+            date: rItem.formattedDate,
+            repeatInfo: `Repeating ${repeatMonths} Months Nakshatra Booking (${rItem.monthIndex} of ${activeRepeatDates.length})`
+          }
+          await saveReceipt(counterSession.templeId, data)
+        }
+      } else {
+        const data = buildReceiptPayload()
+        await saveReceipt(counterSession.templeId, data)
+      }
       refreshReceipts()
       handleNewReceipt()
     } catch (err) {
@@ -575,48 +620,129 @@ export default function CounterDashboardPage() {
 
   async function handlePrint() {
     if (cartItems.length === 0) return
-    const data = buildReceiptPayload()
+    const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
+
     try {
-      const saved = await saveReceipt(counterSession.templeId, data)
-      if (mobile && mobile.trim()) {
-        const selectedStar = stars.find((s) => s.id === starId)
-        await saveDevotee(counterSession.templeId, {
-          devoteeName,
-          mobile,
-          starId,
-          starName: selectedStar?.name || '',
-          receiptId: saved.id,
-          receiptNo: saved.receiptNo,
-          total: saved.total,
-          paymentStatus: 'Paid'
-        })
+      if (isRepeatBooking && activeRepeatDates.length > 0) {
+        let firstSaved = null
+        const allSaved = []
+
+        for (const rItem of activeRepeatDates) {
+          const nextNo = await getNextReceiptNo(counterSession.templeId, counterSession.counterId)
+          const data = {
+            ...buildReceiptPayload(),
+            receiptNo: nextNo,
+            bookingDate: rItem.date,
+            date: rItem.formattedDate,
+            repeatInfo: `Repeating ${repeatMonths} Months Nakshatra Booking (${rItem.monthIndex} of ${activeRepeatDates.length})`,
+          }
+          const saved = await saveReceipt(counterSession.templeId, data)
+          allSaved.push(saved)
+          if (!firstSaved) firstSaved = saved
+        }
+
+        if (mobile && mobile.trim()) {
+          const selectedStar = stars.find((s) => s.id === starId)
+          await saveDevotee(counterSession.templeId, {
+            devoteeName,
+            mobile,
+            starId,
+            starName: selectedStar?.name || '',
+            receiptId: firstSaved.id,
+            receiptNo: firstSaved.receiptNo,
+            total: total * activeRepeatDates.length,
+            paymentStatus: 'Paid'
+          })
+        }
+
+        const masterReceipt = {
+          ...firstSaved,
+          total: total * activeRepeatDates.length,
+          items: cartItems.map((c) => ({
+            name: `${c.name} (${activeRepeatDates.length} Months Repeat)`,
+            amount: c.amount,
+            qty: c.qty * activeRepeatDates.length
+          })),
+          repeatDatesList: activeRepeatDates.map((a) => `${a.monthName}: ${a.formattedDate}`)
+        }
+
+        sessionStorage.setItem('theertha-last-receipt', JSON.stringify(masterReceipt))
+      } else {
+        const data = buildReceiptPayload()
+        const saved = await saveReceipt(counterSession.templeId, data)
+        if (mobile && mobile.trim()) {
+          const selectedStar = stars.find((s) => s.id === starId)
+          await saveDevotee(counterSession.templeId, {
+            devoteeName,
+            mobile,
+            starId,
+            starName: selectedStar?.name || '',
+            receiptId: saved.id,
+            receiptNo: saved.receiptNo,
+            total: saved.total,
+            paymentStatus: 'Paid'
+          })
+        }
+        sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))
       }
-      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))
     } catch {
-      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(data))
+      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(buildReceiptPayload()))
     }
     window.location.href = '/temple/counter/receipt-preview'
   }
 
   async function handleConfirmReceipt() {
     if (cartItems.length === 0) return
-    const data = buildReceiptPayload()
+    const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
+
     try {
-      const saved = await saveReceipt(counterSession.templeId, data)
-      if (mobile && mobile.trim()) {
-        const selectedStar = stars.find((s) => s.id === starId)
-        await saveDevotee(counterSession.templeId, {
-          devoteeName,
-          mobile,
-          starId,
-          starName: selectedStar?.name || '',
-          receiptId: saved.id,
-          receiptNo: saved.receiptNo,
-          total: saved.total,
-          paymentStatus: 'Unpaid'
-        })
+      if (isRepeatBooking && activeRepeatDates.length > 0) {
+        let firstSaved = null
+        for (const rItem of activeRepeatDates) {
+          const nextNo = await getNextReceiptNo(counterSession.templeId, counterSession.counterId)
+          const data = {
+            ...buildReceiptPayload(),
+            receiptNo: nextNo,
+            bookingDate: rItem.date,
+            date: rItem.formattedDate,
+            paymentStatus: 'Unpaid',
+            repeatInfo: `Repeating ${repeatMonths} Months Nakshatra Booking (${rItem.monthIndex} of ${activeRepeatDates.length})`,
+          }
+          const saved = await saveReceipt(counterSession.templeId, data)
+          if (!firstSaved) firstSaved = saved
+        }
+        if (mobile && mobile.trim()) {
+          const selectedStar = stars.find((s) => s.id === starId)
+          await saveDevotee(counterSession.templeId, {
+            devoteeName,
+            mobile,
+            starId,
+            starName: selectedStar?.name || '',
+            receiptId: firstSaved.id,
+            receiptNo: firstSaved.receiptNo,
+            total: total * activeRepeatDates.length,
+            paymentStatus: 'Unpaid'
+          })
+        }
+        alert(`Successfully created ${activeRepeatDates.length} unpaid repeating receipts for ${devoteeName || 'devotee'}!`)
+      } else {
+        const data = buildReceiptPayload()
+        const saved = await saveReceipt(counterSession.templeId, data)
+        if (mobile && mobile.trim()) {
+          const selectedStar = stars.find((s) => s.id === starId)
+          await saveDevotee(counterSession.templeId, {
+            devoteeName,
+            mobile,
+            starId,
+            starName: selectedStar?.name || '',
+            receiptId: saved.id,
+            receiptNo: saved.receiptNo,
+            total: saved.total,
+            paymentStatus: 'Unpaid'
+          })
+        }
+        alert('Unpaid receipt confirmed and saved successfully!')
       }
-      alert('Unpaid receipt confirmed and saved successfully!')
       refreshReceipts()
       handleNewReceipt()
     } catch (err) {
@@ -779,6 +905,92 @@ export default function CounterDashboardPage() {
                 </select>
               )}
             </div>
+          </div>
+
+          {/* ══ Multi-Date / Repeating Nakshatra Booking Options ══ */}
+          <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/80 p-4 space-y-3 shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Repeat size={16} className="text-[#F7D77C]" />
+                <div>
+                  <span className="text-xs font-bold text-[#F8F6F0] block">Repeat Booking by Nakshatra</span>
+                  <span className="text-[10px] text-[#EFE6D3]/60">Auto-calculated dates from Prokerala Panchangam</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isRepeatBooking}
+                  onChange={(e) => setIsRepeatBooking(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4A017]"></div>
+              </label>
+            </div>
+
+            {isRepeatBooking && (
+              <div className="space-y-3 pt-3 border-t border-white/10 animate-fadeIn">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
+                    Repeat Duration / Period
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: '1 Month', count: 1 },
+                      { label: '3 Months', count: 3 },
+                      { label: '6 Months', count: 6 },
+                      { label: '12 Months (1 Yr)', count: 12 }
+                    ].map((opt) => (
+                      <button
+                        key={opt.count}
+                        type="button"
+                        onClick={() => setRepeatMonths(opt.count)}
+                        className={`rounded-lg py-1.5 px-2 text-xs font-bold transition outline-none ${
+                          repeatMonths === opt.count
+                            ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                            : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preview calculated dates list */}
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-[#F7D77C] bg-white/5 px-2.5 py-1.5 rounded-lg">
+                    <span>Selected Dates ({repeatDates.filter((r) => r.selected).length}):</span>
+                    <span>Total Amount: ₹{(total * repeatDates.filter((r) => r.selected).length).toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-[#D4A017]/30">
+                    {repeatDates.map((item, idx) => (
+                      <label
+                        key={item.date}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition ${
+                          item.selected
+                            ? 'border-[#D4A017]/50 bg-[#D4A017]/14 text-white'
+                            : 'border-white/5 bg-white/5 text-[#EFE6D3]/40 hover:bg-white/8'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={item.selected}
+                            onChange={() => toggleRepeatDate(idx)}
+                            className="rounded border-white/20 bg-black/20 text-[#D4A017] focus:ring-0"
+                          />
+                          <span className="font-bold text-[#F7D77C]">Month {idx + 1}:</span>
+                          <span className="font-mono font-semibold text-[#F8F6F0]">{item.formattedDate}</span>
+                        </div>
+                        <span className="text-[10px] text-[#EFE6D3]/60 italic">{item.monthName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Payment Status + Priest */}

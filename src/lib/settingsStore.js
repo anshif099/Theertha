@@ -24,21 +24,37 @@ function setLocalData(key, data) {
    Stars (Nakshatra)
 ══════════════════════════════════════════════ */
 
+import { ALL_27_NAKSHATRAS } from './nakshatraHelper.js'
+
 export async function loadStars(templeId) {
   const localKey = `theertha-stars-${templeId}`
   try {
     const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/stars`))
-    if (!snapshot.exists()) return getLocalData(localKey, [])
-    const val = snapshot.val()
-    const list = Object.entries(val)
-      .filter(([, s]) => s && typeof s === 'object')
-      .map(([id, s]) => ({ id, ...s }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+    let customList = []
+    if (snapshot.exists()) {
+      const val = snapshot.val()
+      customList = Object.entries(val)
+        .filter(([, s]) => s && typeof s === 'object')
+        .map(([id, s]) => ({ id, ...s }))
+    } else {
+      customList = getLocalData(localKey, [])
+    }
+    
+    // Merge ALL_27_NAKSHATRAS with any custom temple-added stars
+    const mergedMap = new Map()
+    ALL_27_NAKSHATRAS.forEach((star) => mergedMap.set(star.name.toLowerCase(), star))
+    customList.forEach((star) => {
+      if (star && star.name) {
+        mergedMap.set(star.name.toLowerCase(), { id: star.id || `star-${Date.now()}`, name: star.name })
+      }
+    })
+    
+    const list = Array.from(mergedMap.values())
     setLocalData(localKey, list)
     return list
   } catch (error) {
     console.warn('Unable to load stars from Realtime Database:', error)
-    return getLocalData(localKey, [])
+    return ALL_27_NAKSHATRAS
   }
 }
 

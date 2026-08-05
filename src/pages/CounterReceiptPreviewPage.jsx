@@ -214,6 +214,24 @@ export default function CounterReceiptPreviewPage() {
               ))}
             </div>
 
+            {/* Repeating Nakshatra Dates Schedule */}
+            {receipt.repeatDatesList && receipt.repeatDatesList.length > 0 && (
+              <>
+                <div className="my-2.5 border-b border-dashed border-gray-400" />
+                <div className="text-[10px] font-black uppercase tracking-wide text-gray-800 mb-1">
+                  Nakshatra Scheduled Dates ({receipt.repeatDatesList.length} Months):
+                </div>
+                <div className="grid gap-1 bg-gray-50 p-2 rounded border border-gray-200 text-[10px] font-mono text-gray-700">
+                  {receipt.repeatDatesList.map((dStr, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="font-bold">M{idx + 1}:</span>
+                      <span>{dStr}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="my-3 border-b border-dashed border-gray-400" />
 
             {/* Net Total & Payment Method */}
