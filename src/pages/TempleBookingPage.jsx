@@ -39,7 +39,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { getNextReceiptNo, saveReceipt, loadSlotsConfig, saveDevotee, loadAllReceipts, loadStars, loadPriests } from '../lib/settingsStore.js'
-import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates } from '../lib/nakshatraHelper.js'
+import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates } from '../lib/nakshatraHelper.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },

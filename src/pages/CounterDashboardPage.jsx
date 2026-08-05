@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
-import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
+import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
 
 
 function fmtINR(n) {
