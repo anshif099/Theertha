@@ -703,7 +703,7 @@ export default function CounterDashboardPage() {
             receiptId: firstSaved.id,
             receiptNo: firstSaved.receiptNo,
             total: total * activeRepeatDates.length,
-            paymentStatus: 'Paid'
+            paymentStatus: paymentStatus
           })
         }
 
@@ -732,7 +732,7 @@ export default function CounterDashboardPage() {
             receiptId: saved.id,
             receiptNo: saved.receiptNo,
             total: saved.total,
-            paymentStatus: 'Paid'
+            paymentStatus: paymentStatus
           })
         }
         sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))

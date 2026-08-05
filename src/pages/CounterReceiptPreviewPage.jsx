@@ -148,7 +148,14 @@ export default function CounterReceiptPreviewPage() {
                 {receipt.templeContact ? ` · Tel: ${receipt.templeContact}` : ''}
               </p>
               <div className="my-2.5 border-b border-dashed border-gray-400" />
-              <h3 className="text-sm font-black uppercase tracking-wider">DEVASWOM RECEIPT</h3>
+              <h3 className="text-sm font-black uppercase tracking-wider">
+                {receipt.paymentStatus === 'Unpaid' ? 'DEVASWOM RECEIPT (UNPAID)' : 'DEVASWOM RECEIPT'}
+              </h3>
+              {receipt.paymentStatus === 'Unpaid' && (
+                <div className="my-1.5 py-1 px-2 bg-rose-100 border border-rose-400 rounded text-center text-xs font-extrabold text-rose-800 uppercase tracking-widest">
+                  *** UNPAID — PAYMENT PENDING ***
+                </div>
+              )}
               <div className="my-2.5 border-b border-dashed border-gray-400" />
             </div>
 
@@ -254,13 +261,24 @@ export default function CounterReceiptPreviewPage() {
 
             <div className="my-3 border-b border-dashed border-gray-400" />
 
-            {/* Net Total & Payment Method */}
+            {/* Net Total & Payment Method / Status */}
             <div className="flex justify-between items-center text-xs font-black uppercase">
               <span>Payment Mode:</span>
-              <span className="text-gray-800">{receipt.paymentMethod}</span>
+              <span className="text-gray-800">{receipt.paymentMethod || 'Cash'}</span>
             </div>
 
-            <div className="mt-1 flex justify-between items-center text-sm font-black uppercase">
+            <div className="mt-1 flex justify-between items-center text-xs font-black uppercase">
+              <span>Payment Status:</span>
+              <span className={`px-2 py-0.5 rounded font-black text-xs ${
+                receipt.paymentStatus === 'Unpaid' 
+                  ? 'bg-rose-100 text-rose-800 border border-rose-400' 
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-400'
+              }`}>
+                {receipt.paymentStatus || 'PAID'}
+              </span>
+            </div>
+
+            <div className="mt-1.5 flex justify-between items-center text-sm font-black uppercase">
               <span>Net Amount:</span>
               <span className="text-lg text-black">{fmtINR(receipt.total)}</span>
             </div>
