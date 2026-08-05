@@ -226,63 +226,106 @@ export async function loadTodayReceipts(templeId, dateStr) {
 }
 
 export async function loadSingleReceipt(templeId, dateStr, receiptId) {
-  const targetId = receiptId || dateStr
-  const localKey = templeId ? `theertha-receipts-${templeId}` : ''
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+  const qReceiptNo = params.get('receiptNo') || ''
+  const qReceiptId = params.get('receiptId') || ''
+  const qTempleId = templeId || params.get('templeId') || ''
+  const qDate = dateStr || params.get('date') || ''
 
-  // Normalize YYYY-MM-DD date if provided
-  let formattedDate = dateStr
-  if (dateStr && dateStr.includes(' ')) {
-    const d = new Date(dateStr)
-    if (!isNaN(d.getTime())) {
-      formattedDate = d.toISOString().slice(0, 10)
+  const searchKeys = [receiptId, qReceiptId, qReceiptNo, dateStr].filter(Boolean)
+
+  // 1. Direct exact path lookup in Realtime DB
+  if (qTempleId && qDate && qReceiptId) {
+    let formattedDate = qDate
+    if (qDate.includes(' ')) {
+      const d = new Date(qDate)
+      if (!isNaN(d.getTime())) formattedDate = d.toISOString().slice(0, 10)
     }
-  }
-
-  // 1. Try direct exact path lookup in Realtime DB
-  if (templeId && formattedDate && receiptId) {
     try {
-      const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${formattedDate}/${receiptId}`))
+      const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${qTempleId}/receipts/${formattedDate}/${qReceiptId}`))
       if (snap.exists()) return snap.val()
-    } catch (error) {
-      console.warn('Unable to load receipt by exact date/id path:', error)
+    } catch (err) {
+      console.warn('Direct path lookup failed:', err)
     }
   }
 
-  // 2. Comprehensive search across ALL receipt dates in Firebase Realtime DB for this temple
-  if (templeId) {
+  // 2. Comprehensive search across ALL receipt dates for this temple in Realtime DB
+  if (qTempleId) {
     try {
-      const allSnap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts`))
-      if (allSnap.exists()) {
-        const datesObj = allSnap.val()
+      const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${qTempleId}/receipts`))
+      if (snap.exists()) {
+        const datesObj = snap.val()
         for (const [dKey, receiptsMap] of Object.entries(datesObj)) {
           if (receiptsMap && typeof receiptsMap === 'object') {
             for (const [id, r] of Object.entries(receiptsMap)) {
               if (r && typeof r === 'object') {
-                if (
-                  id === targetId ||
-                  r.id === targetId ||
-                  r.receiptNo === targetId ||
-                  r.receiptNo === receiptId ||
-                  r.receiptNo === dateStr ||
-                  (targetId && r.receiptNo && r.receiptNo.toLowerCase() === targetId.toLowerCase())
-                ) {
-                  return { id, ...r, dbDate: r.dbDate || r.bookingDate || dKey }
+                for (const key of searchKeys) {
+                  if (
+                    id === key ||
+                    r.id === key ||
+                    r.receiptNo === key ||
+                    (r.receiptNo && r.receiptNo.toLowerCase() === key.toLowerCase())
+                  ) {
+                    return { id, ...r, dbDate: r.dbDate || r.bookingDate || dKey }
+                  }
                 }
               }
             }
           }
         }
       }
-    } catch (error) {
-      console.warn('Unable to search all receipts in Realtime DB:', error)
+    } catch (err) {
+      console.warn('Temple receipts search failed:', err)
     }
   }
 
-  // 3. Fallback: LocalStorage lookup
-  if (localKey) {
-    const local = getLocalData(localKey, [])
-    return local.find((r) => r.id === targetId || r.receiptNo === targetId || r.receiptNo === receiptId) || null
+  // 3. Universal search across ALL registered temples in Realtime DB
+  try {
+    const allTemplesSnap = await get(ref(realtimeDb, TEMPLE_DB_PATH))
+    if (allTemplesSnap.exists()) {
+      const templesMap = allTemplesSnap.val()
+      for (const [tId, tObj] of Object.entries(templesMap)) {
+        if (tObj && tObj.receipts && typeof tObj.receipts === 'object') {
+          for (const [dKey, receiptsMap] of Object.entries(tObj.receipts)) {
+            if (receiptsMap && typeof receiptsMap === 'object') {
+              for (const [id, r] of Object.entries(receiptsMap)) {
+                if (r && typeof r === 'object') {
+                  for (const key of searchKeys) {
+                    if (
+                      id === key ||
+                      r.id === key ||
+                      r.receiptNo === key ||
+                      (r.receiptNo && r.receiptNo.toLowerCase() === key.toLowerCase())
+                    ) {
+                      return { id, ...r, templeId: tId, dbDate: r.dbDate || r.bookingDate || dKey }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('All temples search failed:', err)
   }
+
+  // 4. LocalStorage lookup fallback
+  if (typeof window !== 'undefined') {
+    const localKeys = Object.keys(localStorage).filter((k) => k.startsWith('theertha-receipts-'))
+    for (const k of localKeys) {
+      const local = getLocalData(k, [])
+      for (const r of local) {
+        for (const key of searchKeys) {
+          if (r.id === key || r.receiptNo === key || (r.receiptNo && r.receiptNo.toLowerCase() === key.toLowerCase())) {
+            return r
+          }
+        }
+      }
+    }
+  }
+
   return null
 }
 
