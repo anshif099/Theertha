@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle, AlertTriangle, ReceiptText, ShieldCheck, Landmark, Download, Printer } from 'lucide-react'
-import { loadSingleReceipt } from '../lib/settingsStore.js'
+import { loadSingleReceipt, decodeReceiptPayload } from '../lib/settingsStore.js'
 
 function fmtINR(n) {
   return '₹' + Number(n).toLocaleString('en-IN')
@@ -16,8 +16,9 @@ export default function CounterReceiptVerifyPage() {
     const templeId = params.get('templeId')
     const date = params.get('date')
     const receiptId = params.get('receiptId') || params.get('receiptNo')
+    const payloadStr = params.get('d') || params.get('data')
 
-    if (!templeId && !receiptId) {
+    if (!templeId && !receiptId && !payloadStr) {
       setError('Invalid or incomplete verification link. Please scan a valid receipt QR code.')
       setLoading(false)
       return
@@ -27,12 +28,26 @@ export default function CounterReceiptVerifyPage() {
       .then((data) => {
         if (data) {
           setReceipt(data)
+        } else if (payloadStr) {
+          const decoded = decodeReceiptPayload(payloadStr)
+          if (decoded) {
+            setReceipt(decoded)
+          } else {
+            setError('Receipt record not found in database. Please verify the authenticity of the receipt.')
+          }
         } else {
           setError('Receipt record not found in database. Please verify the authenticity of the receipt.')
         }
       })
       .catch((err) => {
-        console.error('Failed to load receipt:', err)
+        console.error('Failed to load receipt from DB:', err)
+        if (payloadStr) {
+          const decoded = decodeReceiptPayload(payloadStr)
+          if (decoded) {
+            setReceipt(decoded)
+            return
+          }
+        }
         setError('Network error while verifying receipt. Please try again.')
       })
       .finally(() => {

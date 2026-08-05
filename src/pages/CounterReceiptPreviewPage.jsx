@@ -8,6 +8,7 @@ import {
   Share2,
   Smartphone,
 } from 'lucide-react'
+import { encodeReceiptPayload } from '../lib/settingsStore.js'
 
 function fmtINR(n) {
   return '₹' + Number(n).toLocaleString('en-IN')
@@ -291,7 +292,7 @@ export default function CounterReceiptPreviewPage() {
               <div className="my-2 border border-gray-300 p-1.5 bg-white">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                    `https://theertha-theta.vercel.app/receipt/verify?templeId=${receipt.templeId || ''}&date=${receipt.bookingDate || receipt.dbDate || ''}&receiptId=${receipt.id || ''}&receiptNo=${receipt.receiptNo || ''}`
+                    `https://theertha-theta.vercel.app/receipt/verify?templeId=${encodeURIComponent(receipt.templeId || '')}&date=${encodeURIComponent(receipt.bookingDate || receipt.dbDate || '')}&receiptId=${encodeURIComponent(receipt.id || '')}&receiptNo=${encodeURIComponent(receipt.receiptNo || '')}&d=${encodeURIComponent(encodeReceiptPayload(receipt))}`
                   )}`}
                   alt="Receipt QR Code"
                   className="h-[80px] w-[80px]"

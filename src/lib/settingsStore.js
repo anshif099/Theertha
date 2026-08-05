@@ -20,6 +20,65 @@ function setLocalData(key, data) {
   }
 }
 
+export function encodeReceiptPayload(receipt) {
+  if (!receipt) return ''
+  try {
+    const compact = {
+      rNo: receipt.receiptNo || '',
+      tName: receipt.templeName || 'Temple',
+      tDist: receipt.templeDistrict || '',
+      tTel: receipt.templeContact || '',
+      dName: receipt.devoteeName || 'Devotee',
+      mob: receipt.mobile || '',
+      star: receipt.starName || '',
+      addP: receipt.additionalPersons || [],
+      rem: receipt.remarks || '',
+      items: (receipt.items || []).map((i) => ({ name: i.name, amount: i.amount, qty: i.qty })),
+      tot: receipt.total || 0,
+      pm: receipt.paymentMethod || 'Cash',
+      ps: receipt.paymentStatus || 'Paid',
+      dt: receipt.date || receipt.bookingDate || '',
+      tm: receipt.time || '',
+      pName: receipt.priestName || ''
+    }
+    const jsonStr = JSON.stringify(compact)
+    return btoa(encodeURIComponent(jsonStr))
+  } catch (err) {
+    console.warn('Failed to encode receipt payload:', err)
+    return ''
+  }
+}
+
+export function decodeReceiptPayload(base64Str) {
+  if (!base64Str) return null
+  try {
+    const jsonStr = decodeURIComponent(atob(base64Str))
+    const compact = JSON.parse(jsonStr)
+    return {
+      receiptNo: compact.rNo,
+      templeName: compact.tName,
+      templeDistrict: compact.tDist,
+      templeContact: compact.tTel,
+      devoteeName: compact.dName,
+      mobile: compact.mob,
+      starName: compact.star,
+      additionalPersons: compact.addP || [],
+      remarks: compact.rem,
+      items: compact.items || [],
+      total: compact.tot,
+      paymentMethod: compact.pm,
+      paymentStatus: compact.ps,
+      date: compact.dt,
+      time: compact.tm,
+      priestName: compact.pName,
+      verifiedViaPayload: true
+    }
+  } catch (err) {
+    console.warn('Failed to decode receipt payload:', err)
+    return null
+  }
+}
+
 /* ══════════════════════════════════════════════
    Stars (Nakshatra)
 ══════════════════════════════════════════════ */
