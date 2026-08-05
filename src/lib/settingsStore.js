@@ -186,17 +186,30 @@ function todayStr() {
 }
 
 export async function saveReceipt(templeId, receipt) {
+  const safeTempleId = templeId || receipt.templeId || 'default-temple'
   const date = receipt.bookingDate || todayStr()
-  const localKey = `theertha-receipts-${templeId}`
+  const localKey = `theertha-receipts-${safeTempleId}`
   let newId = `rc-${Date.now()}`
-  const record = { ...receipt, savedAt: new Date().toISOString(), dbDate: date }
+  const record = { ...receipt, templeId: safeTempleId, savedAt: new Date().toISOString(), dbDate: date }
+
   try {
-    const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${date}`))
+    const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${safeTempleId}/receipts/${date}`))
     newId = newRef.key || newId
-    await set(newRef, { ...record, id: newId })
+    const finalRecord = { ...record, id: newId }
+
+    // Save to temple receipts node
+    await set(newRef, finalRecord)
+
+    // ALSO save to flat public receipts path for instant mobile verification
+    if (finalRecord.receiptNo) {
+      const cleanReceiptNo = String(finalRecord.receiptNo).replace(/[.#$[\]]/g, '_')
+      await set(ref(realtimeDb, `publicReceipts/${cleanReceiptNo}`), finalRecord)
+    }
+    await set(ref(realtimeDb, `publicReceipts/${newId}`), finalRecord)
   } catch (error) {
     console.warn('Unable to save receipt to Realtime Database, saving locally:', error)
   }
+
   const saved = { id: newId, ...record }
   const local = getLocalData(localKey, [])
   setLocalData(localKey, [saved, ...local.filter((r) => r.id !== newId)])
@@ -233,6 +246,17 @@ export async function loadSingleReceipt(templeId, dateStr, receiptId) {
   const qDate = dateStr || params.get('date') || ''
 
   const searchKeys = [receiptId, qReceiptId, qReceiptNo, dateStr].filter(Boolean)
+
+  // 0. Direct lookup in publicReceipts flat node (Instant O(1) mobile lookup across devices!)
+  for (const key of searchKeys) {
+    const cleanKey = String(key).replace(/[.#$[\]]/g, '_')
+    try {
+      const snap = await get(ref(realtimeDb, `publicReceipts/${cleanKey}`))
+      if (snap.exists()) return snap.val()
+    } catch (err) {
+      console.warn('Public receipt direct lookup error:', err)
+    }
+  }
 
   // 1. Direct exact path lookup in Realtime DB
   if (qTempleId && qDate && qReceiptId) {
