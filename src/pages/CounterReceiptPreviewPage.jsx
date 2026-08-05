@@ -289,13 +289,13 @@ export default function CounterReceiptPreviewPage() {
             {/* Footer QR code and greetings */}
             <div className="flex flex-col items-center justify-center text-center">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Scan to Verify</p>
-              <div className="my-2 border border-gray-300 p-1.5 bg-white">
+              <div className="my-2 border border-gray-300 p-2 bg-white rounded-md shadow-sm">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                    `https://theertha-theta.vercel.app/receipt/verify?templeId=${encodeURIComponent(receipt.templeId || '')}&date=${encodeURIComponent(receipt.bookingDate || receipt.dbDate || '')}&receiptId=${encodeURIComponent(receipt.id || '')}&receiptNo=${encodeURIComponent(receipt.receiptNo || '')}&d=${encodeURIComponent(encodeReceiptPayload(receipt))}`
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=${encodeURIComponent(
+                    `https://theertha-theta.vercel.app/receipt/verify?templeId=${receipt.templeId || ''}&receiptNo=${receipt.receiptNo || receipt.id || ''}`
                   )}`}
                   alt="Receipt QR Code"
-                  className="h-[80px] w-[80px]"
+                  className="h-[110px] w-[110px] object-contain"
                 />
               </div>
               <p className="text-[10px] font-bold text-gray-600 italic">May the Divine Blessings Be With You Always!</p>
