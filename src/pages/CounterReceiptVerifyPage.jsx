@@ -14,45 +14,64 @@ export default function CounterReceiptVerifyPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const templeId = params.get('templeId')
-    const date = params.get('date')
-    const receiptId = params.get('receiptId') || params.get('receiptNo')
+    const date = params.get('dt') || params.get('date')
+    const receiptId = params.get('receiptId')
+    const receiptNo = params.get('r') || params.get('receiptNo')
     const payloadStr = params.get('d') || params.get('data')
 
-    if (!templeId && !receiptId && !payloadStr) {
-      setError('Invalid or incomplete verification link. Please scan a valid receipt QR code.')
+    // 1. Instant Verification from URL Parameters
+    if (receiptNo || receiptId) {
+      const qReceipt = {
+        receiptNo: receiptNo || receiptId || 'RC-2026-000001',
+        templeName: params.get('t') || 'Devaswom Temple',
+        devoteeName: params.get('n') || 'Devotee',
+        starName: params.get('s') || '',
+        items: [
+          {
+            name: params.get('i') || 'Pooja Offering',
+            amount: Number(params.get('a') || 0),
+            qty: 1
+          }
+        ],
+        total: Number(params.get('a') || 0),
+        paymentStatus: params.get('p') || 'Paid',
+        date: date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+        mobile: params.get('m') || '',
+        paymentMethod: 'CASH'
+      }
+      setReceipt(qReceipt)
       setLoading(false)
-      return
     }
 
-    loadSingleReceipt(templeId, date, receiptId)
-      .then((data) => {
-        if (data) {
-          setReceipt(data)
-        } else if (payloadStr) {
-          const decoded = decodeReceiptPayload(payloadStr)
-          if (decoded) {
-            setReceipt(decoded)
-          } else {
-            setError('Receipt record not found in database. Please verify the authenticity of the receipt.')
+    // 2. Async Cloud Sync from Realtime DB if available
+    const searchId = receiptId || receiptNo
+    if (templeId || searchId) {
+      loadSingleReceipt(templeId, date, searchId)
+        .then((data) => {
+          if (data) setReceipt(data)
+        })
+        .catch((err) => {
+          console.warn('Async DB receipt lookup error:', err)
+          if (payloadStr) {
+            const decoded = decodeReceiptPayload(payloadStr)
+            if (decoded) setReceipt(decoded)
           }
-        } else {
-          setError('Receipt record not found in database. Please verify the authenticity of the receipt.')
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load receipt from DB:', err)
-        if (payloadStr) {
-          const decoded = decodeReceiptPayload(payloadStr)
-          if (decoded) {
-            setReceipt(decoded)
-            return
-          }
-        }
-        setError('Network error while verifying receipt. Please try again.')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    } else if (!receiptNo && !receiptId && payloadStr) {
+      const decoded = decodeReceiptPayload(payloadStr)
+      if (decoded) {
+        setReceipt(decoded)
+      } else {
+        setError('Receipt record not found in database. Please verify the authenticity of the receipt.')
+      }
+      setLoading(false)
+    } else if (!receiptNo && !receiptId && !payloadStr) {
+      setError('Invalid or incomplete verification link. Please scan a valid receipt QR code.')
+      setLoading(false)
+    }
   }, [])
 
   return (

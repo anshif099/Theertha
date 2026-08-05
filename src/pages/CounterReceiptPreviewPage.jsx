@@ -292,7 +292,7 @@ export default function CounterReceiptPreviewPage() {
               <div className="my-2 border border-gray-300 p-2 bg-white rounded-md shadow-sm">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=${encodeURIComponent(
-                    `https://theertha-theta.vercel.app/receipt/verify?templeId=${receipt.templeId || ''}&receiptNo=${receipt.receiptNo || receipt.id || ''}`
+                    `https://theertha-theta.vercel.app/receipt/verify?r=${encodeURIComponent(receipt.receiptNo || '')}&n=${encodeURIComponent(receipt.devoteeName || '')}&s=${encodeURIComponent(receipt.starName || '')}&i=${encodeURIComponent(receipt.items?.[0]?.name ? `${receipt.items[0].name}${receipt.items.length > 1 ? ` +${receipt.items.length - 1} more` : ''}` : 'Pooja Offering')}&a=${encodeURIComponent(receipt.total || 0)}&dt=${encodeURIComponent(receipt.date || receipt.bookingDate || '')}&p=${encodeURIComponent(receipt.paymentStatus || 'Paid')}&m=${encodeURIComponent(receipt.mobile || '')}&t=${encodeURIComponent(receipt.templeName || 'Devaswom Temple')}&templeId=${encodeURIComponent(receipt.templeId || '')}&receiptId=${encodeURIComponent(receipt.id || '')}`
                   )}`}
                   alt="Receipt QR Code"
                   className="h-[110px] w-[110px] object-contain"
