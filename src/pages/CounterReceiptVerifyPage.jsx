@@ -15,9 +15,9 @@ export default function CounterReceiptVerifyPage() {
     const params = new URLSearchParams(window.location.search)
     const templeId = params.get('templeId')
     const date = params.get('date')
-    const receiptId = params.get('receiptId')
+    const receiptId = params.get('receiptId') || params.get('receiptNo')
 
-    if (!templeId || !date || !receiptId) {
+    if (!templeId && !receiptId) {
       setError('Invalid or incomplete verification link. Please scan a valid receipt QR code.')
       setLoading(false)
       return

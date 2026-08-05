@@ -226,15 +226,64 @@ export async function loadTodayReceipts(templeId, dateStr) {
 }
 
 export async function loadSingleReceipt(templeId, dateStr, receiptId) {
-  const localKey = `theertha-receipts-${templeId}`
-  try {
-    const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${dateStr}/${receiptId}`))
-    if (snapshot.exists()) return snapshot.val()
-  } catch (error) {
-    console.warn('Unable to load receipt from DB:', error)
+  const targetId = receiptId || dateStr
+  const localKey = templeId ? `theertha-receipts-${templeId}` : ''
+
+  // Normalize YYYY-MM-DD date if provided
+  let formattedDate = dateStr
+  if (dateStr && dateStr.includes(' ')) {
+    const d = new Date(dateStr)
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toISOString().slice(0, 10)
+    }
   }
-  const local = getLocalData(localKey, [])
-  return local.find((r) => r.id === receiptId || r.receiptNo === receiptId) || null
+
+  // 1. Try direct exact path lookup in Realtime DB
+  if (templeId && formattedDate && receiptId) {
+    try {
+      const snap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts/${formattedDate}/${receiptId}`))
+      if (snap.exists()) return snap.val()
+    } catch (error) {
+      console.warn('Unable to load receipt by exact date/id path:', error)
+    }
+  }
+
+  // 2. Comprehensive search across ALL receipt dates in Firebase Realtime DB for this temple
+  if (templeId) {
+    try {
+      const allSnap = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts`))
+      if (allSnap.exists()) {
+        const datesObj = allSnap.val()
+        for (const [dKey, receiptsMap] of Object.entries(datesObj)) {
+          if (receiptsMap && typeof receiptsMap === 'object') {
+            for (const [id, r] of Object.entries(receiptsMap)) {
+              if (r && typeof r === 'object') {
+                if (
+                  id === targetId ||
+                  r.id === targetId ||
+                  r.receiptNo === targetId ||
+                  r.receiptNo === receiptId ||
+                  r.receiptNo === dateStr ||
+                  (targetId && r.receiptNo && r.receiptNo.toLowerCase() === targetId.toLowerCase())
+                ) {
+                  return { id, ...r, dbDate: r.dbDate || r.bookingDate || dKey }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to search all receipts in Realtime DB:', error)
+    }
+  }
+
+  // 3. Fallback: LocalStorage lookup
+  if (localKey) {
+    const local = getLocalData(localKey, [])
+    return local.find((r) => r.id === targetId || r.receiptNo === targetId || r.receiptNo === receiptId) || null
+  }
+  return null
 }
 
 export async function loadAllReceipts(templeId) {
