@@ -569,12 +569,16 @@ export default function CounterDashboardPage() {
     setCartItems((prev) => [...prev, { ...item, qty: 1 }])
   }
 
-  function formatSelectedDate(dateStr) {
-    if (!dateStr) return ''
-    const parts = dateStr.split('-')
-    if (parts.length !== 3) return dateStr
-    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-    return dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+  function convert24hTo12h(time24) {
+    if (!time24) return '06:00 AM'
+    const [hStr, mStr] = time24.split(':')
+    let h = parseInt(hStr, 10)
+    const m = mStr || '00'
+    if (isNaN(h)) return '06:00 AM'
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    h = h % 12
+    if (h === 0) h = 12
+    return `${String(h).padStart(2, '0')}:${m} ${ampm}`
   }
 
   /* build the receipt payload */
@@ -643,7 +647,10 @@ export default function CounterDashboardPage() {
   }
 
   async function handleSaveDraft() {
-    if (cartItems.length === 0) return
+    if (cartItems.length === 0) {
+      alert('Please add at least 1 item / seva to the cart first.')
+      return
+    }
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
     
     try {
@@ -671,7 +678,10 @@ export default function CounterDashboardPage() {
   }
 
   async function handlePrint() {
-    if (cartItems.length === 0) return
+    if (cartItems.length === 0) {
+      alert('Please add at least 1 item / seva to the cart first.')
+      return
+    }
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
 
     try {
@@ -744,7 +754,10 @@ export default function CounterDashboardPage() {
   }
 
   async function handleConfirmReceipt() {
-    if (cartItems.length === 0) return
+    if (cartItems.length === 0) {
+      alert('Please add at least 1 item / seva to the cart first.')
+      return
+    }
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
 
     try {
@@ -1471,8 +1484,7 @@ export default function CounterDashboardPage() {
             <button
               type="button"
               onClick={handleConfirmReceipt}
-              disabled={cartItems.length === 0}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition hover:bg-emerald-500 disabled:opacity-50 outline-none"
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition hover:bg-emerald-500 outline-none"
             >
               <CheckCircle2 size={15} />
               Save Unpaid
@@ -1481,8 +1493,7 @@ export default function CounterDashboardPage() {
           <button
             type="button"
             onClick={handlePrint}
-            disabled={cartItems.length === 0}
-            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] disabled:opacity-50 outline-none"
+            className="flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-2.5 text-sm font-bold text-[#07172D] shadow-[0_8px_24px_rgba(212,160,23,0.3)] transition hover:bg-[#F7D77C] outline-none"
           >
             <Printer size={15} />
             {paymentStatus === 'Unpaid' ? 'Print Unpaid Receipt' : 'Print receipt'}
