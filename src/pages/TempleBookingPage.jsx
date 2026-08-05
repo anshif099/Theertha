@@ -27,15 +27,24 @@ import {
   CheckCircle,
   HelpCircle,
   RefreshCw,
+  Search,
+  Filter,
+  Eye,
+  Clock,
+  ChevronRight,
+  Sparkles,
+  Repeat
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { getNextReceiptNo, saveReceipt, loadSlotsConfig, saveDevotee } from '../lib/settingsStore.js'
+import { getNextReceiptNo, saveReceipt, loadSlotsConfig, saveDevotee, loadAllReceipts, loadStars, loadPriests } from '../lib/settingsStore.js'
+import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates } from '../lib/nakshatraHelper.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
+  { label: 'Booking', icon: CalendarCheck, href: '/temple/booking' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/membership' },
@@ -52,63 +61,16 @@ const addonItems = [
 ]
 
 const SEVAS = [
-  { id: 'seva-1', name: 'Archana', price: 50, duration: '10–15 min', slotRequirement: 'Any slot' },
-  { id: 'seva-2', name: 'Sahasranamam', price: 1100, duration: '45 min', slotRequirement: 'Morning only' },
-  { id: 'seva-3', name: 'Abhishekam', price: 500, duration: '30 min', slotRequirement: 'Pre-booked' },
-  { id: 'seva-4', name: 'Pushpanjali', price: 200, duration: '20 min', slotRequirement: 'Evening' },
-  { id: 'seva-5', name: 'Neivedyam (prasad offering)', price: 150, duration: 'During any pooja', slotRequirement: '' },
-]
-
-const STARS = [
-  'Aswathy', 'Bharani', 'Karthika', 'Rohini', 'Makeeryam', 'Thiruvathira', 'Punartham', 'Pooyam', 'Ayilyam',
-  'Makam', 'Pooram', 'Uthram', 'Atham', 'Chithira', 'Chothy', 'Visakham', 'Anizham', 'Thrikketta', 'Moolam',
-  'Pooradam', 'Uthradam', 'Thiruvonam', 'Avittam', 'Chathayam', 'Pooruruttathy', 'Uthruttathy', 'Revathy'
+  { id: 'seva-1', name: 'Archana', price: 50, duration: '10–15 min' },
+  { id: 'seva-2', name: 'Sahasranamam', price: 1100, duration: '45 min' },
+  { id: 'seva-3', name: 'Abhishekam', price: 500, duration: '30 min' },
+  { id: 'seva-4', name: 'Pushpanjali', price: 200, duration: '20 min' },
+  { id: 'seva-5', name: 'Neivedyam (Prasad Offering)', price: 150, duration: 'During Pooja' },
 ]
 
 const RASIS = [
   'Mesham', 'Vrishabham', 'Mithunam', 'Karkidakam', 'Simham', 'Kanny', 'Thulam', 'Vrishchikam', 'Dhanu',
   'Makaram', 'Kumbham', 'Meenam'
-]
-
-function getDynamicFutureDates() {
-  const datesList = []
-  const starsList = ['Karthika', 'Rohini', 'Makeeryam', 'Thiruvathira']
-  
-  for (let i = 0; i < 4; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    
-    const day = d.getDate()
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const label = `${day} ${months[d.getMonth()]}`
-    
-    const yr = d.getFullYear()
-    const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    const dateStr = `${yr}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    
-    const star = starsList[i % starsList.length]
-    const auspicious = `${day} ${fullMonths[d.getMonth()]} ${yr} — ${star} star${i % 2 === 0 ? ' · auspicious day' : ''}`
-    
-    datesList.push({
-      label,
-      dateStr,
-      auspicious
-    })
-  }
-  return datesList
-}
-
-const DATES = getDynamicFutureDates()
-
-const SLOTS = [
-  { time: '5:30 AM', name: 'Nirmalyam', priest: 'Rajan Pillai', status: 'Reserved' },
-  { time: '6:30 AM', name: 'Usha Pooja', priest: 'Rajan Pillai', status: 'Booked' },
-  { time: '8:00 AM', name: 'Abhishekam', priest: 'Suresh Varma', status: 'Booked' },
-  { time: '10:00 AM', name: 'Pantheeradi Pooja', priest: 'Rajan Pillai', status: 'Available' },
-  { time: '12:00 PM', name: 'Ucha Pooja', priest: 'Suresh Varma', status: 'Limited' },
-  { time: '3:30 PM', name: 'Sayahna', priest: 'Krishnan M.', status: 'Available' },
-  { time: '6:30 PM', name: 'Deeparadhana', priest: 'Rajan Pillai', status: 'Available' },
-  { time: '8:30 PM', name: 'Athazha Pooja', priest: 'Krishnan M.', status: 'Available' },
 ]
 
 export default function TempleBookingPage() {
@@ -117,51 +79,248 @@ export default function TempleBookingPage() {
   const [isLoading, setIsLoading] = useState(Boolean(session))
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  /* Form Fields */
+  /* Active View Tab: 'register' (All Bookings) or 'new' (Create Booking) */
+  const [activeTab, setActiveTab] = useState('register')
+
+  /* Bookings Data */
+  const [bookings, setBookings] = useState([])
+  const [loadingBookings, setLoadingBookings] = useState(true)
+
+  /* Filter Controls */
+  const [searchTerm, setSearchTerm] = useState('')
+  const [timePreset, setTimePreset] = useState('all') // 'all', 'today', 'upcoming', 'past', 'this_month', 'this_year', 'custom'
+  const [singleDate, setSingleDate] = useState('')
+  const [monthFilter, setMonthFilter] = useState('')
+  const [yearFilter, setYearFilter] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'Paid', 'Unpaid'
+
+  /* Selected Receipt Modal */
+  const [viewReceiptModal, setViewReceiptModal] = useState(null)
+
+  /* Form Fields for New Booking */
   const [devoteeName, setDevoteeName] = useState('')
   const [mobile, setMobile] = useState('')
-  const [starName, setStarName] = useState('')
+  const [starName, setStarName] = useState(ALL_27_NAKSHATRAS[0].name)
   const [rasiName, setRasiName] = useState('')
   const [gotra, setGotra] = useState('')
-
-  const [selectedSeva, setSelectedSeva] = useState(SEVAS[1]) // Default Sahasranamam
-  const [selectedDate, setSelectedDate] = useState(DATES[0])
-  const [activeSlots, setActiveSlots] = useState(SLOTS)
-  const [selectedSlot, setSelectedSlot] = useState(SLOTS[3]) // Default 10:00 AM Pantheeradi
-
+  const [selectedSeva, setSelectedSeva] = useState(SEVAS[1])
+  const [bookingDateInput, setBookingDateInput] = useState(() => new Date().toISOString().slice(0, 10))
+  const [bookingTimeInput, setBookingTimeInput] = useState('08:00')
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [paymentStatus, setPaymentStatus] = useState('Paid')
+  const [priestName, setPriestName] = useState('')
+  const [priestsList, setPriestsList] = useState([])
   const [saving, setSaving] = useState(false)
 
-  const templeName = temple?.name || 'Temple'
+  /* Repeat Booking Controls in Form */
+  const [isRepeatBooking, setIsRepeatBooking] = useState(false)
+  const [repeatMonths, setRepeatMonths] = useState(6)
+  const [repeatDates, setRepeatDates] = useState([])
 
+  const templeName = temple?.name || 'Temple'
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
+
+  /* Load Temple, Priests & All Bookings */
   useEffect(() => {
     if (!session) {
       window.location.href = '/temple-login'
-      return undefined
+      return
     }
 
     getRegisteredTemple(session.id)
-      .then((registeredTemple) => {
-        setTemple(registeredTemple || session)
-        setIsLoading(false)
-      })
-      .catch(() => {
-        setTemple(session)
-        setIsLoading(false)
-      })
+      .then((reg) => setTemple(reg || session))
+      .catch(() => setTemple(session))
+      .finally(() => setIsLoading(false))
 
-    loadSlotsConfig(session.id)
-      .then((config) => {
-        if (config && Array.isArray(config) && config.length > 0) {
-          setActiveSlots(config)
-          const pantheeradi = config.find(s => s.time === '10:00 AM')
-          if (pantheeradi) setSelectedSlot(pantheeradi)
-          else if (config[3]) setSelectedSlot(config[3])
-        }
+    loadPriests(session.id)
+      .then((list) => {
+        setPriestsList(list)
+        if (list.length > 0) setPriestName(list[0].name)
       })
       .catch(() => {})
+
+    fetchBookings()
   }, [session])
+
+  function fetchBookings() {
+    if (!session?.id) return
+    setLoadingBookings(true)
+    loadAllReceipts(session.id)
+      .then((list) => setBookings(list))
+      .catch((err) => console.warn('Failed to load bookings:', err))
+      .finally(() => setLoadingBookings(false))
+  }
+
+  /* Repeat Dates Recalculation in New Booking Form */
+  useEffect(() => {
+    if (isRepeatBooking && starName && bookingDateInput) {
+      const dates = getRepeatingNakshatraDates(starName, bookingDateInput, repeatMonths)
+      setRepeatDates(dates.map((d) => ({ ...d, selected: true })))
+    } else {
+      setRepeatDates([])
+    }
+  }, [isRepeatBooking, starName, bookingDateInput, repeatMonths])
+
+  function toggleRepeatDate(idx) {
+    setRepeatDates((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, selected: !item.selected } : item))
+    )
+  }
+
+  /* Filtered Bookings List */
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((item) => {
+      const itemDate = item.bookingDate || item.dbDate || ''
+      const text = `${item.receiptNo || ''} ${item.devoteeName || ''} ${item.mobile || ''} ${item.starName || ''} ${
+        item.items ? item.items.map((i) => i.name).join(' ') : ''
+      }`.toLowerCase()
+
+      // 1. Search filter
+      if (searchTerm.trim() && !text.includes(searchTerm.trim().toLowerCase())) {
+        return false
+      }
+
+      // 2. Status filter
+      if (statusFilter !== 'all' && item.paymentStatus !== statusFilter) {
+        return false
+      }
+
+      // 3. Date / Time Range Filters
+      if (singleDate && itemDate !== singleDate) return false
+      if (monthFilter && !itemDate.startsWith(monthFilter)) return false
+      if (yearFilter && !itemDate.startsWith(yearFilter)) return false
+      if (fromDate && itemDate < fromDate) return false
+      if (toDate && itemDate > toDate) return false
+
+      // 4. Preset filters
+      if (timePreset === 'today' && itemDate !== todayStr) return false
+      if (timePreset === 'upcoming' && itemDate <= todayStr) return false
+      if (timePreset === 'past' && itemDate >= todayStr) return false
+      if (timePreset === 'this_month' && !itemDate.startsWith(todayStr.slice(0, 7))) return false
+      if (timePreset === 'this_year' && !itemDate.startsWith(todayStr.slice(0, 4))) return false
+
+      return true
+    })
+  }, [bookings, searchTerm, statusFilter, singleDate, monthFilter, yearFilter, fromDate, toDate, timePreset, todayStr])
+
+  /* Summary Metrics */
+  const metrics = useMemo(() => {
+    const totalCount = filteredBookings.length
+    const todayCount = bookings.filter((b) => (b.bookingDate || b.dbDate) === todayStr).length
+    const upcomingCount = bookings.filter((b) => (b.bookingDate || b.dbDate) > todayStr).length
+    const pastCount = bookings.filter((b) => (b.bookingDate || b.dbDate) < todayStr).length
+    const totalAmount = filteredBookings.reduce((sum, b) => sum + Number(b.total || 0), 0)
+
+    return { totalCount, todayCount, upcomingCount, pastCount, totalAmount }
+  }, [bookings, filteredBookings, todayStr])
+
+  /* Handle Form Submit for New Booking */
+  async function handleCreateBooking(e) {
+    e.preventDefault()
+    if (!devoteeName.trim() || !mobile.trim()) {
+      alert('Devotee Name and Mobile number are required.')
+      return
+    }
+
+    setSaving(true)
+    const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
+
+    try {
+      if (isRepeatBooking && activeRepeatDates.length > 0) {
+        let firstSaved = null
+        for (const rItem of activeRepeatDates) {
+          const nextNo = await getNextReceiptNo(session.id, 'booking-counter')
+          const payload = {
+            receiptNo: nextNo,
+            counterId: 'booking-hub',
+            counterNo: 'B-01',
+            counterName: 'Booking Hub',
+            templeId: session.id,
+            templeName,
+            devoteeName: devoteeName.trim(),
+            mobile: mobile.trim(),
+            starName,
+            remarks: `Rasi: ${rasiName} · Gotra: ${gotra.trim()}`,
+            items: [{ name: selectedSeva.name, amount: selectedSeva.price, qty: 1 }],
+            total: selectedSeva.price,
+            paymentMethod,
+            paymentStatus,
+            bookingDate: rItem.date,
+            date: rItem.formattedDate,
+            time: bookingTimeInput,
+            priestName,
+            repeatInfo: `Repeating ${repeatMonths} Months Nakshatra Booking (${rItem.monthIndex} of ${activeRepeatDates.length})`
+          }
+
+          const saved = await saveReceipt(session.id, payload)
+          if (!firstSaved) firstSaved = saved
+        }
+
+        if (mobile && mobile.trim()) {
+          await saveDevotee(session.id, {
+            devoteeName: devoteeName.trim(),
+            mobile: mobile.trim(),
+            starName,
+            receiptId: firstSaved.id,
+            receiptNo: firstSaved.receiptNo,
+            total: selectedSeva.price * activeRepeatDates.length,
+            paymentStatus
+          })
+        }
+
+        alert(`✓ Successfully created ${activeRepeatDates.length} repeating Nakshatra bookings!`)
+      } else {
+        const nextNo = await getNextReceiptNo(session.id, 'booking-counter')
+        const payload = {
+          receiptNo: nextNo,
+          counterId: 'booking-hub',
+          counterNo: 'B-01',
+          counterName: 'Booking Hub',
+          templeId: session.id,
+          templeName,
+          devoteeName: devoteeName.trim(),
+          mobile: mobile.trim(),
+          starName,
+          remarks: `Rasi: ${rasiName} · Gotra: ${gotra.trim()}`,
+          items: [{ name: selectedSeva.name, amount: selectedSeva.price, qty: 1 }],
+          total: selectedSeva.price,
+          paymentMethod,
+          paymentStatus,
+          bookingDate: bookingDateInput,
+          date: new Date(bookingDateInput).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+          time: bookingTimeInput,
+          priestName
+        }
+
+        const saved = await saveReceipt(session.id, payload)
+        await saveDevotee(session.id, {
+          devoteeName: devoteeName.trim(),
+          mobile: mobile.trim(),
+          starName,
+          receiptId: saved.id,
+          receiptNo: saved.receiptNo,
+          total: selectedSeva.price,
+          paymentStatus
+        })
+
+        alert('✓ Booking saved successfully!')
+      }
+
+      fetchBookings()
+      setActiveTab('register')
+      setDevoteeName('')
+      setMobile('')
+      setGotra('')
+      setIsRepeatBooking(false)
+    } catch (err) {
+      console.error('Failed to create booking:', err)
+      alert('Failed to save booking. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function getInitials(name = 'Temple') {
     return name
@@ -175,96 +334,6 @@ export default function TempleBookingPage() {
 
   const initials = useMemo(() => getInitials(templeName), [templeName])
 
-  function handleCalendarDateChange(dateVal) {
-    if (!dateVal) return
-    const d = new Date(dateVal)
-    const options = { day: '2-digit', month: 'short' }
-    const label = d.toLocaleDateString('en-IN', options)
-    
-    const yr = d.getFullYear()
-    const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    const auspLabel = `${d.getDate()} ${fullMonths[d.getMonth()]} ${yr}`
-    
-    const newDateObj = {
-      label,
-      dateStr: dateVal,
-      auspicious: `${auspLabel} — Auspicious booked date`
-    }
-    setSelectedDate(newDateObj)
-  }
-
-  async function handleConfirmBooking() {
-    if (!devoteeName.trim() || !mobile.trim()) {
-      alert('Please fill out Name and Mobile number.')
-      return
-    }
-
-    setSaving(true)
-    try {
-      // 1. Generate new sequential receipt number
-      const receiptNo = await getNextReceiptNo(session.id, 'nadavaravu-entry')
-      
-      const payload = {
-        receiptNo,
-        counterId: 'nadavaravu-entry',
-        counterNo: 'N/A',
-        counterName: 'Walk-in Nadavaravu',
-        templeId: session.id,
-        templeName: templeName,
-        devoteeName: devoteeName.trim(),
-        mobile: mobile.trim(),
-        starName,
-        remarks: `Gotra: ${gotra.trim()} · Rasi: ${rasiName} · Slot: ${selectedSlot.name}`,
-        items: [{ name: selectedSeva.name, amount: selectedSeva.price, qty: 1 }],
-        total: selectedSeva.price,
-        paymentMethod: paymentStatus === 'Unpaid' ? 'Cash' : paymentMethod,
-        paymentStatus,
-        date: new Date(selectedDate.dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
-        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        priestName: selectedSlot.priest || '',
-      }
-
-      // 2. Save dynamic receipt payload to database
-      await saveReceipt(session.id, payload)
-
-      // 3. Register Devotee
-      await saveDevotee(session.id, {
-        devoteeName: devoteeName.trim(),
-        mobile: mobile.trim(),
-        starName,
-        receiptId: receiptNo,
-        receiptNo,
-        total: selectedSeva.price,
-        paymentStatus
-      })
-
-      if (paymentStatus === 'Unpaid') {
-        alert('Booking confirmed successfully as UNPAID (No Print).')
-      }
-      
-      // 4. Auto redirect to Nadavaravu dashboard register
-      window.location.href = '/temple/nadavaravu'
-    } catch (err) {
-      console.error('Failed to confirm walk-in counter booking:', err)
-      alert('Failed to save counter booking. Please try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function getSlotClass(status) {
-    if (status === 'Reserved' || status === 'Booked') {
-      return 'border-white/5 bg-white/3 text-[#EFE6D3]/30 cursor-not-allowed opacity-50'
-    }
-    if (selectedSlot.time === status.time) {
-      return 'border-[#3B82F6] bg-[#3B82F6]/10 text-[#60A5FA] ring-2 ring-[#3B82F6]/40 font-bold'
-    }
-    if (status === 'Limited') {
-      return 'border-amber-500/30 bg-amber-500/5 text-amber-400 hover:bg-amber-500/10'
-    }
-    return 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10'
-  }
-
   function SidebarContent() {
     return (
       <>
@@ -277,7 +346,7 @@ export default function TempleBookingPage() {
         <nav className="mt-3 grid gap-2">
           {mainMenuItems.map((item) => {
             const Icon = item.icon
-            const isCurrent = item.label === 'Nadavaravu'
+            const isCurrent = item.label === 'Booking'
 
             return (
               <a
@@ -339,9 +408,9 @@ export default function TempleBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#141519] text-[#EFE6D3] font-sans selection:bg-[#D4A017] selection:text-[#0B1F3A]">
+    <div className="min-h-screen bg-[#07172D] text-[#EFE6D3] font-sans selection:bg-[#D4A017] selection:text-[#0B1F3A]">
       
-      {/* Mobile sidebar backdrop */}
+      {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
@@ -350,7 +419,7 @@ export default function TempleBookingPage() {
         />
       )}
 
-      {/* Mobile sidebar drawer */}
+      {/* Mobile drawer */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] transition-transform duration-300 lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -373,406 +442,745 @@ export default function TempleBookingPage() {
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-white/5 bg-[#0D0E12] px-5 py-6 text-[#F8F6F0] lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
         <SidebarContent />
       </aside>
 
       <div className="lg:pl-72 flex flex-col min-h-screen">
         
-        {/* Header Section */}
-        <header className="sticky top-0 z-30 border-b border-white/5 bg-[#141519]/80 px-5 py-4 backdrop-blur-xl sm:px-8">
+        {/* Header */}
+        <header className="sticky top-0 z-30 border-b border-[#D4A017]/18 bg-[#07172D]/90 px-5 py-4 backdrop-blur-xl sm:px-8">
           <div className="relative mx-auto flex max-w-7xl flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="absolute left-4 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-md text-[#EFE6D3] transition hover:bg-white/5 lg:hidden"
+              className="absolute left-0 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-md text-[#EFE6D3] transition hover:bg-white/5 lg:hidden"
               aria-label="Open sidebar"
             >
               <Menu size={22} />
             </button>
 
-            <div className="pl-12 lg:pl-0 flex items-center gap-3">
-              <a
-                href="/temple/nadavaravu"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/4 text-[#EFE6D3]/70 hover:text-white transition"
-              >
-                <ArrowLeft size={16} />
-              </a>
-              <div>
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#D4A017]">
-                  <ClipboardList size={14} />
-                  <span>Book a seva — Nadavaravu entry</span>
-                </div>
-                <h1 className="font-display mt-0.5 text-xl font-bold tracking-tight text-[#F8F6F0]">
-                  Walk-in / counter booking
-                </h1>
-              </div>
+            <div className="pl-12 lg:pl-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#F7D77C]">
+                Temple Management
+              </p>
+              <h1 className="font-display mt-1 text-2xl font-bold sm:text-3xl text-white">
+                Booking Management Register
+              </h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              {saving && (
-                <span className="flex h-8 items-center gap-1.5 rounded-full border border-[#D4A017]/22 bg-[#D4A017]/5 px-3 py-1 text-xs text-[#F7D77C] animate-pulse">
-                  <RefreshCw size={12} className="animate-spin" />
-                  Saving...
-                </span>
-              )}
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 font-semibold text-[#F7D77C]">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Tab selector */}
+              <div className="flex rounded-lg border border-[#D4A017]/30 bg-black/20 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('register')}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition ${
+                    activeTab === 'register'
+                      ? 'bg-[#D4A017] text-[#07172D] shadow-md'
+                      : 'text-[#EFE6D3]/70 hover:text-white'
+                  }`}
+                >
+                  <CalendarCheck size={15} />
+                  All Bookings Register
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('new')}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition ${
+                    activeTab === 'new'
+                      ? 'bg-[#D4A017] text-[#07172D] shadow-md'
+                      : 'text-[#EFE6D3]/70 hover:text-white'
+                  }`}
+                >
+                  <Plus size={15} />
+                  + New Booking
+                </button>
+              </div>
+
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] font-bold text-[#F7D77C]">
                 {initials}
               </span>
             </div>
           </div>
         </header>
 
-        {/* Content Body Grid */}
-        <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          
-          {/* Left Column: Form & Sevas */}
-          <div className="space-y-6">
-            
-            {/* Devotee Details form card */}
-            <section className="rounded-xl border border-white/5 bg-[#1E1F25] p-5 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#F7D77C] mb-2">
-                Devotee Details
-              </h2>
-              
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="name-input" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/50">
-                    Name
-                  </label>
-                  <input
-                    id="name-input"
-                    type="text"
-                    value={devoteeName}
-                    onChange={(e) => setDevoteeName(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#141519] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/20"
-                  />
+        {/* Content Body */}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-6 sm:px-8">
+
+          {/* TAB 1: ALL BOOKINGS REGISTER (PAST, PRESENT, FUTURE) */}
+          {activeTab === 'register' && (
+            <div className="space-y-6">
+
+              {/* Summary Cards */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 p-4 backdrop-blur-md">
+                  <p className="text-xs font-bold text-[#EFE6D3]/60 uppercase">Filtered Bookings</p>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-white">{metrics.totalCount}</p>
+                  <p className="mt-1 text-[11px] text-[#F7D77C]">Matches active date/time range</p>
                 </div>
-                <div>
-                  <label htmlFor="mobile-input" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/50">
-                    Mobile
-                  </label>
-                  <input
-                    id="mobile-input"
-                    type="tel"
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#141519] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/20"
-                  />
+                <div className="rounded-xl border border-emerald-500/24 bg-emerald-500/5 p-4 backdrop-blur-md">
+                  <p className="text-xs font-bold text-emerald-400 uppercase">Today's Bookings</p>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-emerald-300">{metrics.todayCount}</p>
+                  <p className="mt-1 text-[11px] text-emerald-400/80">Scheduled for today ({todayStr})</p>
+                </div>
+                <div className="rounded-xl border border-blue-500/24 bg-blue-500/5 p-4 backdrop-blur-md">
+                  <p className="text-xs font-bold text-blue-400 uppercase">Upcoming / Future</p>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-blue-300">{metrics.upcomingCount}</p>
+                  <p className="mt-1 text-[11px] text-blue-400/80">Scheduled future bookings</p>
+                </div>
+                <div className="rounded-xl border border-[#D4A017]/24 bg-[#D4A017]/10 p-4 backdrop-blur-md">
+                  <p className="text-xs font-bold text-[#F7D77C] uppercase">Total Offering Value</p>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-[#F7D77C]">
+                    ₹{metrics.totalAmount.toLocaleString('en-IN')}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[#EFE6D3]/70">Cumulative filtered total</p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="star-select" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/50">
-                    Star (Nakshatra)
-                  </label>
-                  <select
-                    id="star-select"
-                    value={starName}
-                    onChange={(e) => setStarName(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#141519] px-3 py-2.5 text-xs text-white outline-none focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/20"
+              {/* Filtering Controls Card */}
+              <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 p-5 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2">
+                    <Filter size={18} className="text-[#F7D77C]" />
+                    <h3 className="font-bold text-white text-base">Date & Time Range Filters</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTimePreset('all')
+                      setSingleDate('')
+                      setMonthFilter('')
+                      setYearFilter('')
+                      setFromDate('')
+                      setToDate('')
+                      setSearchTerm('')
+                      setStatusFilter('all')
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#F7D77C] hover:underline"
                   >
-                    <option value="">Select Star</option>
-                    {STARS.map(st => (
-                      <option key={st} value={st}>{st}</option>
+                    <RefreshCw size={12} />
+                    Reset All Filters
+                  </button>
+                </div>
+
+                {/* Preset Time Range Pills */}
+                <div>
+                  <label className="block text-xs font-bold text-[#EFE6D3]/60 mb-2">Quick Timeline Filters:</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'all', label: 'All Bookings' },
+                      { id: 'today', label: 'Today (Present)' },
+                      { id: 'upcoming', label: 'Upcoming (Future)' },
+                      { id: 'past', label: 'Past Bookings' },
+                      { id: 'this_month', label: 'This Month' },
+                      { id: 'this_year', label: 'This Year' }
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setTimePreset(p.id)
+                          setSingleDate('')
+                          setMonthFilter('')
+                          setYearFilter('')
+                          setFromDate('')
+                          setToDate('')
+                        }}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                          timePreset === p.id
+                            ? 'bg-[#D4A017] text-[#07172D] shadow-md'
+                            : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="rasi-select" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/50">
-                    Rasi (Moon sign)
-                  </label>
-                  <select
-                    id="rasi-select"
-                    value={rasiName}
-                    onChange={(e) => setRasiName(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#141519] px-3 py-2.5 text-xs text-white outline-none focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/20"
-                  >
-                    <option value="">Select Rasi</option>
-                    {RASIS.map(ra => (
-                      <option key={ra} value={ra}>{ra}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div>
-                <label htmlFor="gotra-input" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/50">
-                  Gotra / family name
-                </label>
-                <input
-                  id="gotra-input"
-                  type="text"
-                  value={gotra}
-                  onChange={(e) => setGotra(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-[#141519] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/20"
-                />
-              </div>
+                {/* Specific Date & Search Controls */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 pt-2 border-t border-white/10">
+                  {/* Search term */}
+                  <div className="lg:col-span-2">
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">Search Keyword</label>
+                    <div className="relative">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#EFE6D3]/40" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search devotee, mobile, star, seva…"
+                        className="w-full rounded-lg border border-white/10 bg-black/20 pl-9 pr-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                      />
+                    </div>
+                  </div>
 
-            </section>
+                  {/* Single Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">Specific Day</label>
+                    <input
+                      type="date"
+                      value={singleDate}
+                      onChange={(e) => {
+                        setSingleDate(e.target.value)
+                        setTimePreset('custom')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
 
-            {/* Select Seva card list */}
-            <section className="rounded-xl border border-white/5 bg-[#1E1F25] p-5 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#F7D77C]">
-                Select Seva
-              </h2>
-              
-              <div className="grid gap-3">
-                {SEVAS.map((seva) => {
-                  const isSelected = selectedSeva.id === seva.id
-                  return (
-                    <button
-                      key={seva.id}
-                      onClick={() => setSelectedSeva(seva)}
-                      className={`w-full flex items-center justify-between rounded-xl border p-4 text-left transition duration-300 outline-none ${
-                        isSelected
-                          ? 'border-[#3B82F6] bg-[#3B82F6]/5'
-                          : 'border-white/5 bg-white/2 hover:border-white/10'
-                      }`}
-                    >
-                      <div>
-                        <p className="text-xs font-bold text-white tracking-tight">{seva.name}</p>
-                        <p className="mt-1 text-[10px] text-[#EFE6D3]/40">
-                          {seva.duration} {seva.slotRequirement ? `• ${seva.slotRequirement}` : ''}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-bold ${isSelected ? 'text-[#60A5FA]' : 'text-[#F7D77C]'}`}>
-                        ₹{seva.price.toLocaleString('en-IN')}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+                  {/* Specific Month */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">Month (YYYY-MM)</label>
+                    <input
+                      type="month"
+                      value={monthFilter}
+                      onChange={(e) => {
+                        setMonthFilter(e.target.value)
+                        setTimePreset('custom')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
 
-            </section>
-
-          </div>
-
-          {/* Right Column: Slot Selection & Summary */}
-          <div className="space-y-6">
-            
-            {/* Select Date and Slot */}
-            <section className="rounded-xl border border-white/5 bg-[#1E1F25] p-5 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#F7D77C]">
-                Select Date & Slot
-              </h2>
-              
-              {/* Date tab selector bar */}
-              <div className="flex flex-wrap items-center gap-2 border-b border-white/5 pb-3">
-                {DATES.map((dt) => {
-                  const isSelectedDate = selectedDate.dateStr === dt.dateStr
-                  return (
-                    <button
-                      key={dt.dateStr}
-                      onClick={() => setSelectedDate(dt)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                        isSelectedDate
-                          ? 'bg-[#3B82F6]/20 text-[#60A5FA] border border-[#3B82F6]/30'
-                          : 'bg-white/4 text-[#EFE6D3]/50 border border-white/5 hover:bg-white/8 hover:text-white'
-                      }`}
-                    >
-                      {dt.label}
-                    </button>
-                  )
-                })}
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="p-2 rounded-lg bg-white/4 border border-white/5 hover:bg-white/8 text-[#EFE6D3]/70 hover:text-white transition flex items-center justify-center"
-                    title="Choose from calendar"
-                  >
-                    <Calendar size={13} />
-                  </button>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => handleCalendarDateChange(e.target.value)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              {/* Auspicious label */}
-              <p className="text-[10px] font-bold text-amber-400 tracking-wide">
-                {selectedDate.auspicious}
-              </p>
-
-              {/* Time Slots Grid */}
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {activeSlots.map((slot) => {
-                  const isSelectedSlot = selectedSlot.time === slot.time
-                  const isBooked = slot.status === 'Reserved' || slot.status === 'Booked'
-                  
-                  let displayStatus = slot.status
-                  let slotClass = 'border-white/5 bg-white/2 hover:border-white/10 text-white'
-                  
-                  if (isBooked) {
-                    slotClass = 'border-white/5 bg-white/3 text-[#EFE6D3]/20 cursor-not-allowed'
-                  } else if (isSelectedSlot) {
-                    slotClass = 'border-[#3B82F6] bg-[#3B82F6]/10 text-[#60A5FA] ring-1 ring-[#3B82F6]/40'
-                    displayStatus = 'Selected'
-                  } else if (slot.status === 'Limited') {
-                    slotClass = 'border-amber-500/20 bg-amber-500/5 text-amber-300 hover:bg-amber-500/10'
-                    displayStatus = '1 slot left'
-                  } else if (slot.status === 'Available') {
-                    slotClass = 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/10'
-                    displayStatus = 'Available'
-                  }
-
-                  return (
-                    <button
-                      key={slot.time}
-                      disabled={isBooked}
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`flex flex-col rounded-xl border p-3.5 text-left transition duration-300 outline-none ${slotClass}`}
-                    >
-                      <p className="text-xs font-bold tracking-tight">{slot.time} — {slot.name}</p>
-                      <p className="mt-1 text-[9px] font-semibold tracking-wider uppercase opacity-60">
-                        {displayStatus}
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Legends indicators */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-white/5 text-[9px] font-bold text-[#EFE6D3]/50">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded bg-emerald-400/20 border border-emerald-400/40" />
-                  Available
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded bg-[#3B82F6]/30 border border-[#3B82F6]/60" />
-                  Selected
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded bg-amber-500/25 border border-amber-500/50" />
-                  Limited
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded bg-white/5 border border-white/10 opacity-30" />
-                  Booked
-                </span>
-              </div>
-
-            </section>
-
-            {/* Booking Summary Panel */}
-            <section className="rounded-xl border border-white/5 bg-[#1E1F25] p-5 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#F7D77C]">
-                Booking Summary
-              </h2>
-              
-              <div className="rounded-xl border border-white/5 bg-white/2 p-4 space-y-3 font-semibold text-xs text-[#EFE6D3]/80">
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Devotee</span>
-                  <span className="text-white font-bold">{devoteeName || '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Star</span>
-                  <span className="text-white font-bold">{starName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Seva</span>
-                  <span className="text-white font-bold">{selectedSeva.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Date &amp; time</span>
-                  <span className="text-white font-bold">{selectedDate.label} • {selectedSlot.time}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Pooja slot</span>
-                  <span className="text-white font-bold">{selectedSlot.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#EFE6D3]/40">Priest</span>
-                  <span className="text-white font-bold">{selectedSlot.priest}</span>
-                </div>
-                
-                <div className="border-t border-white/5 pt-3 flex justify-between items-baseline font-bold text-sm text-[#F7D77C]">
-                  <span>Total</span>
-                  <span className="text-lg">₹{selectedSeva.price.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
-              {/* Payment Status Toggle */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#EFE6D3]/40">Payment Status</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStatus('Paid')}
-                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition ${
-                      paymentStatus === 'Paid'
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                        : 'bg-white/5 text-[#EFE6D3]/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Paid
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStatus('Unpaid')}
-                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition ${
-                      paymentStatus === 'Unpaid'
-                        ? 'bg-rose-600 text-white shadow-md shadow-rose-600/10'
-                        : 'bg-white/5 text-[#EFE6D3]/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Unpaid
-                  </button>
-                </div>
-              </div>
-
-              {/* Action confirm buttons */}
-              <div className="flex flex-col gap-3">
-                {paymentStatus === 'Paid' && (
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#EFE6D3]/40">Payment Mode</span>
+                  {/* Year Select */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">Year</label>
                     <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full rounded-lg border border-white/10 bg-[#141519] px-3.5 py-3 text-xs text-white outline-none focus:border-[#D4A017]/50 cursor-pointer"
+                      value={yearFilter}
+                      onChange={(e) => {
+                        setYearFilter(e.target.value)
+                        setTimePreset('custom')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
                     >
-                      <option value="Cash">Cash</option>
-                      <option value="UPI">UPI</option>
-                      <option value="Card">Card</option>
+                      <option value="">All Years</option>
+                      <option value="2025">2025</option>
+                      <option value="2026">2026</option>
+                      <option value="2027">2027</option>
+                      <option value="2028">2028</option>
                     </select>
                   </div>
-                )}
+                </div>
 
+                {/* Date Range Controls */}
+                <div className="grid gap-4 sm:grid-cols-3 pt-2 border-t border-white/10 items-end">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">From Date (Start)</label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => {
+                        setFromDate(e.target.value)
+                        setTimePreset('custom')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">To Date (End)</label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => {
+                        setToDate(e.target.value)
+                        setTimePreset('custom')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/60 mb-1">Payment Status Filter</label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    >
+                      <option value="all">All Payment Statuses</option>
+                      <option value="Paid">Paid Only</option>
+                      <option value="Unpaid">Unpaid Only</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bookings Table */}
+              <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck size={18} className="text-[#F7D77C]" />
+                    <h3 className="font-bold text-white text-base">Bookings Register List</h3>
+                  </div>
+                  <span className="rounded-full bg-[#D4A017]/14 px-3 py-1 text-xs font-bold text-[#F7D77C]">
+                    Showing {filteredBookings.length} of {bookings.length} Bookings
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  {loadingBookings ? (
+                    <div className="py-12 text-center text-xs text-[#EFE6D3]/60">Loading temple bookings register…</div>
+                  ) : filteredBookings.length === 0 ? (
+                    <div className="py-16 text-center text-[#EFE6D3]/50">
+                      <Calendar size={32} className="mx-auto mb-2 text-[#D4A017]/40" />
+                      <p className="font-bold text-white">No Bookings Found</p>
+                      <p className="text-xs mt-1">Try adjusting your date range or search keyword filters.</p>
+                    </div>
+                  ) : (
+                    <table className="w-full min-w-[850px] border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-white/10 bg-white/5 text-[11px] font-bold uppercase tracking-wider text-[#F7D77C]">
+                          <th className="px-5 py-3.5">Booking / Receipt No</th>
+                          <th className="px-5 py-3.5">Scheduled Date & Time</th>
+                          <th className="px-5 py-3.5">Devotee Name & Contact</th>
+                          <th className="px-5 py-3.5">Star (Nakshatra)</th>
+                          <th className="px-5 py-3.5">Seva / Offering</th>
+                          <th className="px-5 py-3.5">Amount</th>
+                          <th className="px-5 py-3.5">Timeline Status</th>
+                          <th className="px-5 py-3.5">Payment</th>
+                          <th className="px-5 py-3.5 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {filteredBookings.map((b) => {
+                          const dateVal = b.bookingDate || b.dbDate || ''
+                          const isToday = dateVal === todayStr
+                          const isFuture = dateVal > todayStr
+                          const isPast = dateVal < todayStr
+
+                          return (
+                            <tr key={b.id || b.receiptNo} className="hover:bg-white/5 transition">
+                              <td className="px-5 py-3.5 font-mono font-bold text-[#F7D77C] whitespace-nowrap">
+                                {b.receiptNo}
+                                {b.repeatInfo && (
+                                  <span className="block text-[9px] font-sans text-blue-300 mt-0.5">
+                                    {b.repeatInfo}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 whitespace-nowrap">
+                                <div className="font-bold text-white">{b.date || dateVal}</div>
+                                <div className="text-[10px] text-[#EFE6D3]/60 flex items-center gap-1 mt-0.5">
+                                  <Clock size={10} />
+                                  {b.time || '06:00 AM'}
+                                </div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="font-bold text-white">{b.devoteeName || '—'}</div>
+                                <div className="text-[10px] text-[#EFE6D3]/60">{b.mobile || '—'}</div>
+                              </td>
+                              <td className="px-5 py-3.5 font-semibold text-[#EFE6D3]/80">
+                                {b.starName || '—'}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                {b.items && b.items.length > 0 ? (
+                                  b.items.map((it, idx) => (
+                                    <div key={idx} className="font-bold text-white">
+                                      {it.name} <span className="text-[10px] text-[#EFE6D3]/60">({it.qty}x)</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="font-bold text-white">Poojawork</span>
+                                )}
+                                {b.priestName && (
+                                  <div className="text-[10px] text-[#EFE6D3]/50">Priest: {b.priestName}</div>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 font-extrabold text-[#F7D77C] whitespace-nowrap">
+                                ₹{Number(b.total || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="px-5 py-3.5 whitespace-nowrap">
+                                {isToday && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Today
+                                  </span>
+                                )}
+                                {isFuture && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 border border-blue-500/30 px-2.5 py-0.5 text-[10px] font-bold text-blue-300">
+                                    <Clock size={10} />
+                                    Upcoming
+                                  </span>
+                                )}
+                                {isPast && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold text-[#EFE6D3]/60">
+                                    Past
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 whitespace-nowrap">
+                                <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
+                                  b.paymentStatus === 'Unpaid'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                }`}>
+                                  {b.paymentStatus || 'Paid'}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewReceiptModal(b)}
+                                  className="inline-flex items-center gap-1 rounded bg-[#D4A017]/14 px-2.5 py-1 text-[11px] font-bold text-[#F7D77C] hover:bg-[#D4A017] hover:text-[#07172D] transition"
+                                >
+                                  <Eye size={12} />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: CREATE NEW POOJA / SEVA BOOKING */}
+          {activeTab === 'new' && (
+            <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 p-6 shadow-2xl space-y-6">
+              <div className="border-b border-white/10 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-white text-lg">Create New Pooja / Seva Booking</h3>
+                  <p className="text-xs text-[#EFE6D3]/60 mt-0.5">Schedule new offerings with devotee details and optional repeating Nakshatra dates</p>
+                </div>
                 <button
-                  onClick={handleConfirmBooking}
-                  disabled={saving || !devoteeName.trim()}
-                  className={`w-full flex items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-xs font-black uppercase tracking-wider transition disabled:opacity-50 outline-none ${
-                    paymentStatus === 'Unpaid'
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/10'
-                      : 'bg-white hover:bg-[#EFE6D3] text-[#07172D] shadow-lg shadow-white/5'
-                  }`}
+                  type="button"
+                  onClick={() => setActiveTab('register')}
+                  className="text-xs font-bold text-[#F7D77C] hover:underline"
                 >
-                  <Check size={14} />
-                  {paymentStatus === 'Unpaid' ? 'Confirm Booking (No Print)' : 'Confirm & print'}
+                  ← Back to Register List
                 </button>
               </div>
 
-            </section>
+              <form onSubmit={handleCreateBooking} className="space-y-6">
+                {/* Devotee Info Section */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Devotee Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={devoteeName}
+                      onChange={(e) => setDevoteeName(e.target.value)}
+                      placeholder="e.g. Anish Kumar"
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      placeholder="10-digit mobile number"
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Star (Nakshatra)</label>
+                    <select
+                      value={starName}
+                      onChange={(e) => setStarName(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-[#0B1F3A] px-3 py-2.5 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    >
+                      {ALL_27_NAKSHATRAS.map((s) => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-          </div>
+                {/* Additional Astrology Details */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Rasi (Zodiac)</label>
+                    <select
+                      value={rasiName}
+                      onChange={(e) => setRasiName(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-[#0B1F3A] px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    >
+                      <option value="">— Select Rasi —</option>
+                      {RASIS.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Gotra</label>
+                    <input
+                      type="text"
+                      value={gotra}
+                      onChange={(e) => setGotra(e.target.value)}
+                      placeholder="e.g. Kashyapa"
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Performing Priest</label>
+                    <select
+                      value={priestName}
+                      onChange={(e) => setPriestName(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-[#0B1F3A] px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    >
+                      <option value="">— Select Priest —</option>
+                      {priestsList.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    </select>
+                  </div>
+                </div>
 
+                {/* Seva Offering Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-[#F7D77C] uppercase tracking-wider mb-2">Select Seva / Pooja Offering</label>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {SEVAS.map((seva) => (
+                      <div
+                        key={seva.id}
+                        onClick={() => setSelectedSeva(seva)}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                          selectedSeva.id === seva.id
+                            ? 'border-[#D4A017] bg-[#D4A017]/14 ring-1 ring-[#D4A017]'
+                            : 'border-white/10 bg-white/5 hover:bg-white/8'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-white text-sm">{seva.name}</span>
+                          <span className="font-extrabold text-[#F7D77C] text-sm">₹{seva.price}</span>
+                        </div>
+                        <p className="text-[10px] text-[#EFE6D3]/60 mt-1">Duration: {seva.duration}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Booking Date & Time */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Booking Date</label>
+                    <input
+                      type="date"
+                      value={bookingDateInput}
+                      onChange={(e) => setBookingDateInput(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Booking Time</label>
+                    <input
+                      type="time"
+                      value={bookingTimeInput}
+                      onChange={(e) => setBookingTimeInput(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
+                    />
+                  </div>
+                </div>
+
+                {/* Multi-Date Repeating Nakshatra Booking Section */}
+                <div className="rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/90 p-4 space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Repeat size={16} className="text-[#F7D77C]" />
+                      <div>
+                        <span className="text-xs font-bold text-white block">Multi-Date Repeat Booking by Nakshatra</span>
+                        <span className="text-[10px] text-[#EFE6D3]/60">Auto-calculate dates matching {starName} from Prokerala Panchangam</span>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isRepeatBooking}
+                        onChange={(e) => setIsRepeatBooking(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4A017]"></div>
+                    </label>
+                  </div>
+
+                  {isRepeatBooking && (
+                    <div className="space-y-3 pt-3 border-t border-white/10 animate-fadeIn">
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-semibold text-[#EFE6D3]/70">
+                          Repeat Duration / Period
+                        </label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: '1 Month', count: 1 },
+                            { label: '3 Months', count: 3 },
+                            { label: '6 Months', count: 6 },
+                            { label: '12 Months (1 Yr)', count: 12 }
+                          ].map((opt) => (
+                            <button
+                              key={opt.count}
+                              type="button"
+                              onClick={() => setRepeatMonths(opt.count)}
+                              className={`rounded-lg py-1.5 px-2 text-xs font-bold transition outline-none ${
+                                repeatMonths === opt.count
+                                  ? 'bg-[#D4A017] text-[#07172D] shadow-md ring-2 ring-[#F7D77C]'
+                                  : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Dates Preview */}
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-[#F7D77C] bg-white/5 px-2.5 py-1.5 rounded-lg">
+                          <span>Calculated Dates ({repeatDates.filter((r) => r.selected).length}):</span>
+                          <span>Total Amount: ₹{(selectedSeva.price * repeatDates.filter((r) => r.selected).length).toLocaleString('en-IN')}</span>
+                        </div>
+
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-[#D4A017]/30">
+                          {repeatDates.map((item, idx) => (
+                            <label
+                              key={item.date}
+                              className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition ${
+                                item.selected
+                                  ? 'border-[#D4A017]/50 bg-[#D4A017]/14 text-white'
+                                  : 'border-white/5 bg-white/5 text-[#EFE6D3]/40 hover:bg-white/8'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={item.selected}
+                                  onChange={() => toggleRepeatDate(idx)}
+                                  className="rounded border-white/20 bg-black/20 text-[#D4A017] focus:ring-0"
+                                />
+                                <span className="font-bold text-[#F7D77C]">Month {idx + 1}:</span>
+                                <span className="font-mono font-semibold text-white">{item.formattedDate}</span>
+                              </div>
+                              <span className="text-[10px] text-[#EFE6D3]/60 italic">{item.monthName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Options */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Payment Method</label>
+                    <div className="flex gap-2">
+                      {['Cash', 'UPI', 'Card'].map((pm) => (
+                        <button
+                          key={pm}
+                          type="button"
+                          onClick={() => setPaymentMethod(pm)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
+                            paymentMethod === pm
+                              ? 'bg-[#D4A017] text-[#07172D]'
+                              : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                          }`}
+                        >
+                          {pm}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#EFE6D3]/70 mb-1.5">Payment Status</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentStatus('Paid')}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
+                          paymentStatus === 'Paid'
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                        }`}
+                      >
+                        Paid
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentStatus('Unpaid')}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
+                          paymentStatus === 'Unpaid'
+                            ? 'bg-rose-600 text-white shadow-md'
+                            : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10'
+                        }`}
+                      >
+                        Unpaid
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <div className="pt-4 border-t border-white/10 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center gap-2 rounded-xl bg-[#D4A017] px-8 py-3 text-sm font-extrabold text-[#07172D] transition hover:bg-[#F7D77C] disabled:opacity-50 shadow-xl"
+                  >
+                    <CheckCircle size={18} />
+                    {saving ? 'Saving Booking…' : 'Confirm & Save Booking'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </main>
-        
-        {/* Footer info panel */}
-        <footer className="mt-auto border-t border-white/5 bg-[#0D0E12]/80 px-8 py-4 text-center text-xs text-[#EFE6D3]/35 flex flex-wrap items-center justify-between gap-4">
-          <p>© 2026 THEERTHA Temple Cloud System. All rights reserved.</p>
-          <div className="flex items-center gap-3 font-mono text-[10px]">
-            <span>ENV: Production</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span>Database Status: Connected</span>
-          </div>
-        </footer>
-
       </div>
+
+      {/* VIEW RECEIPT MODAL */}
+      {viewReceiptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md rounded-2xl border border-[#D4A017]/30 bg-[#0B1F3A] p-6 shadow-2xl text-white space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="font-extrabold text-[#F7D77C] text-base">{viewReceiptModal.receiptNo}</h3>
+                <p className="text-xs text-[#EFE6D3]/60">{viewReceiptModal.date} · {viewReceiptModal.time}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewReceiptModal(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-[#EFE6D3]/80">
+              <div className="flex justify-between"><span>Devotee:</span> <span className="font-bold text-white">{viewReceiptModal.devoteeName}</span></div>
+              <div className="flex justify-between"><span>Mobile:</span> <span className="font-mono text-white">{viewReceiptModal.mobile || '—'}</span></div>
+              <div className="flex justify-between"><span>Star (Nakshatra):</span> <span className="font-bold text-white">{viewReceiptModal.starName || '—'}</span></div>
+              <div className="flex justify-between"><span>Offering:</span> <span className="font-bold text-white">{viewReceiptModal.items ? viewReceiptModal.items.map(i => i.name).join(', ') : 'Pooja'}</span></div>
+              <div className="flex justify-between"><span>Payment Mode:</span> <span className="font-bold text-white">{viewReceiptModal.paymentMethod}</span></div>
+              <div className="flex justify-between"><span>Payment Status:</span> <span className={`font-bold ${viewReceiptModal.paymentStatus === 'Unpaid' ? 'text-rose-400' : 'text-emerald-400'}`}>{viewReceiptModal.paymentStatus}</span></div>
+              <div className="flex justify-between border-t border-white/10 pt-2 text-sm"><span>Total Amount:</span> <span className="font-extrabold text-[#F7D77C]">₹{Number(viewReceiptModal.total || 0).toLocaleString('en-IN')}</span></div>
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem('theertha-last-receipt', JSON.stringify(viewReceiptModal))
+                  window.location.href = '/temple/counter/receipt-preview'
+                }}
+                className="flex-1 rounded-xl bg-[#D4A017] py-2.5 text-xs font-bold text-[#07172D] text-center hover:bg-[#F7D77C] transition"
+              >
+                Print Receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewReceiptModal(null)}
+                className="flex-1 rounded-xl bg-white/10 py-2.5 text-xs font-bold text-white text-center hover:bg-white/20 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

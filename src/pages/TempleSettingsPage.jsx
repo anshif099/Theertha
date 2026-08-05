@@ -39,6 +39,7 @@ import { loadMembershipConfig, saveMembershipConfig } from '../lib/membershipSto
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
   { label: 'Counter', icon: ReceiptText, href: '/temple/counter' },
+  { label: 'Booking', icon: CalendarCheck, href: '/temple/booking' },
   { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
   { label: 'Nadavaravu', icon: ClipboardList, href: '/temple/nadavaravu' },
   { label: 'Membership', icon: UsersRound, href: '/temple/membership' },

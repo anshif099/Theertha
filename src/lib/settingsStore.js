@@ -237,6 +237,43 @@ export async function loadSingleReceipt(templeId, dateStr, receiptId) {
   return local.find((r) => r.id === receiptId || r.receiptNo === receiptId) || null
 }
 
+export async function loadAllReceipts(templeId) {
+  const localKey = `theertha-receipts-${templeId}`
+  const allList = []
+  try {
+    const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts`))
+    if (snapshot.exists()) {
+      const datesObj = snapshot.val()
+      Object.entries(datesObj).forEach(([dateKey, receiptsMap]) => {
+        if (receiptsMap && typeof receiptsMap === 'object') {
+          Object.entries(receiptsMap).forEach(([id, r]) => {
+            if (r && typeof r === 'object') {
+              allList.push({ id, ...r, dbDate: r.dbDate || r.bookingDate || dateKey })
+            }
+          })
+        }
+      })
+    }
+  } catch (error) {
+    console.warn('Unable to load all receipts from DB:', error)
+  }
+
+  const local = getLocalData(localKey, [])
+  const map = new Map()
+  allList.forEach((r) => map.set(r.id || r.receiptNo, r))
+  local.forEach((r) => {
+    const key = r.id || r.receiptNo
+    if (key && !map.has(key)) map.set(key, r)
+  })
+
+  const merged = Array.from(map.values()).sort(
+    (a, b) => new Date(b.bookingDate || b.savedAt || 0) - new Date(a.bookingDate || a.savedAt || 0),
+  )
+
+  setLocalData(localKey, merged)
+  return merged
+}
+
 /* ══════════════════════════════════════════════
    Expenses
 ══════════════════════════════════════════════ */
@@ -295,29 +332,7 @@ export async function loadExpenses(templeId) {
   }
 }
 
-export async function loadAllReceipts(templeId) {
-  const localKey = `theertha-receipts-${templeId}`
-  try {
-    const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/receipts`))
-    if (!snapshot.exists()) return getLocalData(localKey, [])
-    const val = snapshot.val()
-    const list = []
-    Object.entries(val).forEach(([dateStr, dateObj]) => {
-      if (dateObj && typeof dateObj === 'object') {
-        Object.entries(dateObj).forEach(([id, r]) => {
-          if (r && typeof r === 'object') {
-            list.push({ id, dateStr, ...r })
-          }
-        })
-      }
-    })
-    setLocalData(localKey, list)
-    return list
-  } catch (error) {
-    console.warn('Unable to load all receipts from DB:', error)
-    return getLocalData(localKey, [])
-  }
-}
+
 
 /* ══════════════════════════════════════════════
    Account Transactions
