@@ -164,17 +164,27 @@ export async function deleteTemple(templeId) {
   return nextTemples
 }
 
-export async function findTempleByLoginId(loginId) {
-  const normalizedLoginId = loginId.trim().toUpperCase()
+// Normalize visually ambiguous characters so users can type O or 0, I or 1
+// interchangeably when entering a login ID in a monospace font context.
+function normalizeLoginId(id) {
+  return id
+    .toUpperCase()
+    .replace(/O/g, '0')
+    .replace(/I/g, '1')
+}
 
-  if (!normalizedLoginId) {
+export async function findTempleByLoginId(loginId) {
+  const normalizedInput = normalizeLoginId(loginId.trim())
+
+  if (!normalizedInput) {
     return null
   }
 
   const temples = await loadRegisteredTemples()
   return (
     temples.find(
-      (temple) => temple.loginId?.toUpperCase() === normalizedLoginId,
+      (temple) =>
+        temple.loginId ? normalizeLoginId(temple.loginId) === normalizedInput : false,
     ) || null
   )
 }
