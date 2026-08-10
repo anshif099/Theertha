@@ -126,12 +126,17 @@ export default function TempleAccountsPage() {
 
   /* Date Range Filter State */
   const [filterType, setFilterType] = useState('Monthly')
-  const [selectedMonth, setSelectedMonth] = useState('2026-06') // June 2026 as default
-  const [selectedYear, setSelectedYear] = useState('2026')
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}`
+  })
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()))
 
   const monthOptions = useMemo(() => {
     const options = []
-    const now = new Date() // local time is June 2026
+    const now = new Date()
     for (let i = 0; i < 18; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const y = d.getFullYear()
