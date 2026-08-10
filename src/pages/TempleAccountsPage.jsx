@@ -133,6 +133,7 @@ export default function TempleAccountsPage() {
     return `${y}-${m}`
   })
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()))
+  const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().slice(0, 10))
 
   const monthOptions = useMemo(() => {
     const options = []
@@ -153,6 +154,10 @@ export default function TempleAccountsPage() {
   }, [])
 
   const filterLabel = useMemo(() => {
+    if (filterType === 'Daily') {
+      const d = new Date(selectedDay + 'T12:00:00')
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
     if (filterType === 'Monthly') {
       const [y, m] = selectedMonth.split('-')
       const date = new Date(Number(y), Number(m) - 1, 1, 12, 0, 0)
@@ -162,7 +167,7 @@ export default function TempleAccountsPage() {
       return selectedYear
     }
     return 'Overall'
-  }, [filterType, selectedMonth, selectedYear])
+  }, [filterType, selectedDay, selectedMonth, selectedYear])
 
   /* Modal Form State */
   const [showAddModal, setShowAddModal] = useState(false)
@@ -242,31 +247,34 @@ export default function TempleAccountsPage() {
     return dbReceipts.filter(r => {
       const dateStr = r.dateStr || r.date || r.savedAt?.slice(0, 10)
       if (!dateStr) return false
+      if (filterType === 'Daily') return dateStr === selectedDay
       if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
       if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
       return true
     })
-  }, [dbReceipts, filterType, selectedMonth, selectedYear])
+  }, [dbReceipts, filterType, selectedDay, selectedMonth, selectedYear])
 
   const filteredExpenses = useMemo(() => {
     return dbExpenses.filter(e => {
       const dateStr = e.date
       if (!dateStr) return false
+      if (filterType === 'Daily') return dateStr === selectedDay
       if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
       if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
       return true
     })
-  }, [dbExpenses, filterType, selectedMonth, selectedYear])
+  }, [dbExpenses, filterType, selectedDay, selectedMonth, selectedYear])
 
   const filteredTransactions = useMemo(() => {
     return dbTransactions.filter(t => {
       const dateStr = t.date
       if (!dateStr) return false
+      if (filterType === 'Daily') return dateStr === selectedDay
       if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
       if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
       return true
     })
-  }, [dbTransactions, filterType, selectedMonth, selectedYear])
+  }, [dbTransactions, filterType, selectedDay, selectedMonth, selectedYear])
 
   // Combine real counter receipts, billing expenses, and manual entries
   const ledgerEntries = useMemo(() => {
@@ -597,10 +605,22 @@ export default function TempleAccountsPage() {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-white cursor-pointer"
               >
+                <option value="Daily" className="bg-[#141519] text-white">Daily View</option>
                 <option value="Monthly" className="bg-[#141519] text-white">Monthly View</option>
                 <option value="Yearly" className="bg-[#141519] text-white">Yearly View</option>
                 <option value="Overall" className="bg-[#141519] text-white">Overall View</option>
               </select>
+
+              {/* Conditional Day Picker */}
+              {filterType === 'Daily' && (
+                <input
+                  type="date"
+                  value={selectedDay}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setSelectedDay(e.target.value)}
+                  className="bg-white/5 border border-white/10 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-white cursor-pointer [color-scheme:dark]"
+                />
+              )}
 
               {/* Conditional Month Dropdown */}
               {filterType === 'Monthly' && (
