@@ -22,7 +22,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts } from '../lib/settingsStore.js'
+import { loadTodayReceipts, loadAccountTransactions } from '../lib/settingsStore.js'
 import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
 const mainMenuItems = [
@@ -74,6 +74,7 @@ export default function TempleDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [receipts, setReceipts] = useState([])
+  const [accountTxns, setAccountTxns] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(true)
   const [totalFD, setTotalFD] = useState(0)
 
@@ -121,6 +122,18 @@ export default function TempleDashboardPage() {
         }
       })
 
+    const today = new Date().toISOString().slice(0, 10)
+    loadAccountTransactions(session.id)
+      .then((data) => {
+        if (isActive) {
+          // Only keep credit (income) transactions from today
+          setAccountTxns(data.filter((t) => t.date === today && t.type === 'Credit'))
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load account transactions:', error)
+      })
+
     loadFixedDeposits(session.id)
       .then((data) => {
         if (isActive) {
@@ -138,9 +151,11 @@ export default function TempleDashboardPage() {
   }, [session])
 
   const metrics = useMemo(() => {
-    const todayTotal = receipts
+    const receiptTotal = receipts
       .filter((r) => r.paymentStatus !== 'Unpaid')
       .reduce((sum, r) => sum + Number(r.total || 0), 0)
+    const txnTotal = accountTxns.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+    const todayTotal = receiptTotal + txnTotal
     const devoteesTotal = receipts.length
     const sevasTotal = receipts.reduce((sum, r) => {
       if (r.items && Array.isArray(r.items)) {
@@ -175,26 +190,39 @@ export default function TempleDashboardPage() {
         icon: PiggyBank,
       },
     ]
-  }, [receipts, totalFD])
+  }, [receipts, accountTxns, totalFD])
 
   const transactions = useMemo(() => {
-    const sorted = [...receipts].reverse()
-    const top5 = sorted.slice(0, 5)
-
-    return top5.map((r) => {
+    // Merge counter receipts and account transactions, sort newest first
+    const receiptRows = [...receipts].reverse().map((r) => {
       const itemsList = r.items && Array.isArray(r.items)
         ? r.items.map((it) => it.name).join(', ')
         : 'Offering'
-
       return {
         id: r.id,
         devotee: r.devoteeName || 'Anonymous Devotee',
         type: itemsList || 'General offering',
         amount: 'INR ' + Number(r.total || 0).toLocaleString('en-IN'),
         status: 'Paid',
+        sortKey: r.savedAt || r.bookingDate || '',
       }
     })
-  }, [receipts])
+
+    const txnRows = [...accountTxns]
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .map((t) => ({
+        id: t.id,
+        devotee: t.narration || 'Journal Entry',
+        type: t.head || 'Account Transaction',
+        amount: 'INR ' + Number(t.amount || 0).toLocaleString('en-IN'),
+        status: t.status || 'Posted',
+        sortKey: t.createdAt || t.date || '',
+      }))
+
+    return [...receiptRows, ...txnRows]
+      .sort((a, b) => new Date(b.sortKey || 0) - new Date(a.sortKey || 0))
+      .slice(0, 5)
+  }, [receipts, accountTxns])
 
 
   function handleLogout() {
