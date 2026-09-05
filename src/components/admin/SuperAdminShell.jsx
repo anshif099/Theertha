@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LayoutDashboard, LogOut, Menu, PlusCircle, Settings2, X } from 'lucide-react'
 import BrandMark from '../BrandMark.jsx'
+import { getNormalizedPath } from '../../lib/router.js'
 
 const navItems = [
   { label: 'Dashboard', href: '/superadmin', icon: LayoutDashboard },
@@ -9,6 +10,7 @@ const navItems = [
 ]
 
 function SidebarContent({ onClose, showInfoCard = false }) {
+  const currentPath = getNormalizedPath()
   return (
     <>
       <a href="/" aria-label="Back to THEERTHA landing page">
@@ -17,7 +19,7 @@ function SidebarContent({ onClose, showInfoCard = false }) {
       <nav className="mt-10 grid gap-2">
         {navItems.map((item) => {
           const Icon = item.icon
-          const isActive = window.location.pathname === item.href.split('#')[0]
+          const isActive = currentPath === item.href.split('#')[0]
           return (
             <a
               key={item.label}

@@ -21,88 +21,90 @@ import TempleDevoteesPage from './pages/TempleDevoteesPage.jsx'
 import TempleFixedDepositPage from './pages/TempleFixedDepositPage.jsx'
 import TempleDailySchedulePage from './pages/TempleDailySchedulePage.jsx'
 import TempleDonationPage from './pages/TempleDonationPage.jsx'
-
+import { getNormalizedPath } from './lib/router.js'
 
 function App() {
-  if (window.location.pathname === '/temple/donations') {
+  const path = getNormalizedPath()
+
+  if (path === '/temple/donations') {
     return <TempleDonationPage />
   }
-  if (window.location.pathname === '/temple/daily-schedule') {
+  if (path === '/temple/daily-schedule') {
     return <TempleDailySchedulePage />
   }
-  if (window.location.pathname === '/temple/fixed-deposit') {
+  if (path === '/temple/fixed-deposit') {
     return <TempleFixedDepositPage />
   }
-  if (window.location.pathname === '/temple/devotees') {
+  if (path === '/temple/devotees') {
     return <TempleDevoteesPage />
   }
-  if (window.location.pathname === '/temple/membership') {
+  if (path === '/temple/membership') {
     return <TempleMembershipPage />
   }
-  if (window.location.pathname === '/temple/profile') {
+  if (path === '/temple/profile') {
     return <TempleProfilePage />
   }
-  if (window.location.pathname.startsWith('/superadmin/temples')) {
+  if (path.startsWith('/superadmin/temples')) {
     return <TempleRegistrationPage />
   }
 
-  if (window.location.pathname === '/superadmin') {
+  if (path === '/superadmin') {
     return <SuperAdminPage />
   }
 
-  if (window.location.pathname === '/temple-login') {
+  if (path === '/temple-login') {
     return <TempleLoginPage />
   }
 
-  if (window.location.pathname === '/temple/under-development') {
+  if (path === '/temple/under-development') {
     return <UnderDevelopmentPage />
   }
 
-  if (window.location.pathname === '/temple/settings') {
+  if (path === '/temple/settings') {
     return <TempleSettingsPage />
   }
 
-  if (window.location.pathname === '/temple/billing') {
+  if (path === '/temple/billing') {
     return <TempleBillingPage />
   }
 
-  if (window.location.pathname === '/temple/accounts') {
+  if (path === '/temple/accounts') {
     return <TempleAccountsPage />
   }
 
-  if (window.location.pathname === '/temple/nadavaravu') {
+  if (path === '/temple/nadavaravu') {
     return <TempleNadavaravuPage />
   }
 
-  if (window.location.pathname === '/temple/booking') {
+  if (path === '/temple/booking') {
     return <TempleBookingPage />
   }
 
-  if (window.location.pathname === '/temple/assets/register') {
+  if (path === '/temple/assets/register') {
     return <TempleAssetRegisterPage />
   }
 
-  if (window.location.pathname === '/temple/assets') {
+  if (path === '/temple/assets') {
     return <TempleAssetsPage />
   }
 
-  if (window.location.pathname === '/temple/counter') {
+  if (path === '/temple/counter') {
     return <CounterLoginPage />
   }
 
-  if (window.location.pathname === '/temple/counter/dashboard') {
+  if (path === '/temple/counter/dashboard') {
     return <CounterDashboardPage />
   }
 
-  if (window.location.pathname === '/temple/counter/receipt-preview') {
+  if (path === '/temple/counter/receipt-preview') {
     return <CounterReceiptPreviewPage />
   }
 
-  if (window.location.pathname === '/receipt/verify') {
+  if (path === '/receipt/verify') {
     return <CounterReceiptVerifyPage />
   }
 
-  if (window.location.pathname === '/temple/dashboard' || window.location.pathname === '/temple') {
+  if (path === '/temple/dashboard' || path === '/temple') {
     return <TempleDashboardPage />
   }
 

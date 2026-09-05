@@ -13,9 +13,10 @@ import {
   getTemple,
   saveTemple,
 } from '../lib/templeStore.js'
+import { getNormalizedPath } from '../lib/router.js'
 
 function getRouteState() {
-  const parts = window.location.pathname.split('/').filter(Boolean)
+  const parts = getNormalizedPath().split('/').filter(Boolean)
   const templeId = parts[2] === 'new' ? null : parts[2]
 
   return {
