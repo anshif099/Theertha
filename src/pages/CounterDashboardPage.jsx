@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
+import { getTempleSession } from '../lib/templeSession.js'
 import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
 import { navigateTo } from '../lib/router.js'
 
@@ -112,10 +113,27 @@ function convert24hTo12h(time24) {
    ══════════════════════════════════════════════ */
 export default function CounterDashboardPage() {
   /* read counter session */
-  const [counterSession] = useState(() => {
+  const [counterSession, setCounterSession] = useState(() => {
     try {
       const raw = sessionStorage.getItem('theertha-counter-session')
-      return raw ? JSON.parse(raw) : null
+      let parsed = raw ? JSON.parse(raw) : null
+      const templeSession = getTempleSession()
+
+      // If an active temple admin session is present in this browser, ensure counter reflects this temple
+      if (templeSession && templeSession.id) {
+        if (!parsed || parsed.templeId !== templeSession.id) {
+          parsed = {
+            counterId: parsed?.counterId || 'ctr-1',
+            counterName: parsed?.counterName || 'Main Counter',
+            counterNo: parsed?.counterNo || '1',
+            loginId: parsed?.loginId || 'CTR-MC01',
+            templeId: templeSession.id,
+            templeName: templeSession.name || 'Temple',
+          }
+          sessionStorage.setItem('theertha-counter-session', JSON.stringify(parsed))
+        }
+      }
+      return parsed
     } catch {
       return null
     }
@@ -509,27 +527,32 @@ export default function CounterDashboardPage() {
 
   /* load data */
   useEffect(() => {
-    if (!counterSession) return
-    const { templeId, counterId } = counterSession
+    const templeSession = getTempleSession()
+    const activeTempleId = counterSession?.templeId || templeSession?.id
+    if (!activeTempleId) return
 
-    getNextReceiptNo(templeId, counterId)
+    const counterId = counterSession?.counterId || 'default'
+
+    getNextReceiptNo(activeTempleId, counterId)
       .then(setReceiptNo)
       .catch(() => setReceiptNo(`RC-${new Date().getFullYear()}-000001`))
 
-    getRegisteredTemple(templeId)
+    getRegisteredTemple(activeTempleId)
       .then(setTempleData)
       .catch(() => {})
 
-    Promise.all([loadStars(templeId), loadQuickItems(templeId), loadPriests(templeId)])
+    Promise.all([loadStars(activeTempleId), loadQuickItems(activeTempleId), loadPriests(activeTempleId)])
       .then(([starsData, itemsData, priestsData]) => {
-        const priestsOnly = priestsData.filter((p) => !p.role || p.role === 'Priest')
-        setStars(starsData)
-        setQuickItems(itemsData)
+        const priestsOnly = (priestsData || []).filter((p) => !p.role || p.role === 'Priest')
+        setStars(starsData || [])
+        setQuickItems(itemsData || [])
         setPriests(priestsOnly)
-        if (starsData.length > 0) setStarId(starsData[0].id)
+        if (starsData && starsData.length > 0) setStarId(starsData[0].id)
         if (priestsOnly.length > 0) setPriestId(priestsOnly[0].id)
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.warn('Error loading counter initial data:', err)
+      })
       .finally(() => setLoading(false))
 
     Promise.resolve().then(() => {
@@ -1361,14 +1384,16 @@ export default function CounterDashboardPage() {
                     key={item.id}
                     type="button"
                     onClick={() => addToCart(item)}
-                    className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold transition ${
+                    className={`flex items-center justify-between gap-2.5 rounded-lg px-3.5 py-3 text-xs sm:text-sm font-semibold transition ${
                       inCart
                         ? 'bg-[#1B4FBF] text-white shadow-[0_0_16px_rgba(27,79,191,0.4)]'
                         : 'bg-[#0B1F3A] text-[#EFE6D3] hover:bg-[#13294D]'
                     }`}
                   >
-                    <span>{item.name}</span>
-                    <span className={inCart ? 'text-white' : 'text-[#F7D77C]'}>
+                    <span className="text-left font-medium leading-snug break-words line-clamp-2">
+                      {item.name}
+                    </span>
+                    <span className={`shrink-0 font-bold ${inCart ? 'text-white' : 'text-[#F7D77C]'}`}>
                       {fmtINR(item.amount)}
                     </span>
                   </button>

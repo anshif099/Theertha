@@ -154,29 +154,69 @@ export async function deleteStar(templeId, starId) {
 ══════════════════════════════════════════════ */
 
 export async function loadQuickItems(templeId) {
-  const localKey = `theertha-quick-items-${templeId}`
-  try {
-    const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/quickItems`))
-    if (!snapshot.exists()) return getLocalData(localKey, [])
-    const val = snapshot.val()
-    const list = Object.entries(val)
-      .filter(([, item]) => item && typeof item === 'object')
-      .map(([id, item]) => ({ id, ...item }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-    setLocalData(localKey, list)
-    return list
-  } catch (error) {
-    console.warn('Unable to load quick items from Realtime Database:', error)
-    return getLocalData(localKey, [])
+  let safeTempleId = templeId
+  if (!safeTempleId) {
+    try {
+      const raw = sessionStorage.getItem('theertha-temple-session')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.id) safeTempleId = parsed.id
+      }
+    } catch {
+      // ignore
+    }
   }
+
+  const localKey = safeTempleId ? `theertha-quick-items-${safeTempleId}` : null
+  let list = []
+
+  if (safeTempleId) {
+    try {
+      const snapshot = await get(ref(realtimeDb, `${TEMPLE_DB_PATH}/${safeTempleId}/quickItems`))
+      if (snapshot.exists()) {
+        const val = snapshot.val()
+        list = Object.entries(val)
+          .filter(([, item]) => item && typeof item === 'object')
+          .map(([id, item]) => ({ id, ...item }))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+      }
+    } catch (error) {
+      console.warn('Unable to load quick items from Realtime Database:', error)
+    }
+  }
+
+  if (list && list.length > 0) {
+    if (localKey) setLocalData(localKey, list)
+    return list
+  }
+
+  if (localKey) {
+    const local = getLocalData(localKey, [])
+    if (local && local.length > 0) return local
+  }
+
+  // Cross-temple fallback in localStorage: if user created items in this browser
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && k.startsWith('theertha-quick-items-')) {
+      const found = getLocalData(k, [])
+      if (found && found.length > 0) {
+        if (localKey) setLocalData(localKey, found)
+        return found
+      }
+    }
+  }
+
+  return []
 }
 
-export async function addQuickItem(templeId, { name, amount, category = 'Custom', showInCounter = true }) {
+export async function addQuickItem(templeId, { name, amount, category = 'General', showInCounter = true }) {
+  const cleanName = String(name || '').trim()
   const localKey = `theertha-quick-items-${templeId}`
   const record = {
-    name: name.trim(),
+    name: cleanName,
     amount: Number(amount),
-    category: category || 'Custom',
+    category: category || 'General',
     showInCounter: showInCounter !== false,
     createdAt: new Date().toISOString(),
   }
@@ -190,7 +230,9 @@ export async function addQuickItem(templeId, { name, amount, category = 'Custom'
   }
   const added = { id: newId, ...record }
   const local = getLocalData(localKey, [])
-  const updated = [...local.filter((i) => i.id !== newId), added].sort((a, b) => a.name.localeCompare(b.name))
+  const updated = [...local.filter((i) => i.id !== newId), added].sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''))
+  )
   setLocalData(localKey, updated)
   return added
 }
