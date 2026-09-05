@@ -142,6 +142,10 @@ export default function CounterDashboardPage() {
   /* firebase data */
   const [stars, setStars] = useState([])
   const [quickItems, setQuickItems] = useState([])
+  const counterQuickItems = useMemo(
+    () => quickItems.filter((item) => item.showInCounter !== false),
+    [quickItems]
+  )
   const [loading, setLoading] = useState(true)
   const [templeData, setTempleData] = useState(null)
 
@@ -1335,22 +1339,22 @@ export default function CounterDashboardPage() {
 
           {loading ? (
             <p className="text-sm text-[#EFE6D3]/40">Loading items…</p>
-          ) : quickItems.length === 0 ? (
+          ) : counterQuickItems.length === 0 ? (
             <div className="rounded-lg border border-dashed border-[#D4A017]/20 p-6 text-center">
               <Sparkles size={22} className="mx-auto mb-2 text-[#D4A017]/40" />
               <p className="text-sm text-[#EFE6D3]/40">
-                No quick items yet.
+                {quickItems.length === 0 ? 'No quick items yet.' : 'No items enabled for counter.'}
               </p>
               <a
                 href="/temple/settings"
                 className="mt-1 inline-block text-xs font-semibold text-[#F7D77C] hover:underline"
               >
-                Add them in Settings →
+                {quickItems.length === 0 ? 'Add them in Settings →' : 'Select items in Settings →'}
               </a>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
-              {quickItems.map((item) => {
+              {counterQuickItems.map((item) => {
                 const inCart = isInCart(item.id)
                 return (
                   <button

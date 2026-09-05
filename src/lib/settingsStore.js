@@ -171,14 +171,16 @@ export async function loadQuickItems(templeId) {
   }
 }
 
-export async function addQuickItem(templeId, { name, amount }) {
+export async function addQuickItem(templeId, { name, amount, category = 'Custom', showInCounter = true }) {
   const localKey = `theertha-quick-items-${templeId}`
   const record = {
     name: name.trim(),
     amount: Number(amount),
+    category: category || 'Custom',
+    showInCounter: showInCounter !== false,
     createdAt: new Date().toISOString(),
   }
-  let newId = `qi-${Date.now()}`
+  let newId = `qi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   try {
     const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/quickItems`))
     newId = newRef.key || newId
@@ -191,6 +193,77 @@ export async function addQuickItem(templeId, { name, amount }) {
   const updated = [...local.filter((i) => i.id !== newId), added].sort((a, b) => a.name.localeCompare(b.name))
   setLocalData(localKey, updated)
   return added
+}
+
+export async function updateQuickItem(templeId, itemId, { name, amount, category, showInCounter }) {
+  const localKey = `theertha-quick-items-${templeId}`
+  const local = getLocalData(localKey, [])
+  const existing = local.find((i) => i.id === itemId) || {}
+
+  const updatedRecord = {
+    ...existing,
+    id: itemId,
+    name: name !== undefined ? name.trim() : existing.name,
+    amount: amount !== undefined ? Number(amount) : existing.amount,
+    category: category !== undefined ? category : (existing.category || 'Custom'),
+    showInCounter: showInCounter !== undefined ? Boolean(showInCounter) : (existing.showInCounter !== false),
+    updatedAt: new Date().toISOString(),
+  }
+
+  try {
+    await set(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/quickItems/${itemId}`), updatedRecord)
+  } catch (error) {
+    console.warn('Unable to update quick item in Realtime Database:', error)
+  }
+
+  const updatedList = local.map((i) => (i.id === itemId ? updatedRecord : i)).sort((a, b) => a.name.localeCompare(b.name))
+  setLocalData(localKey, updatedList)
+  return updatedRecord
+}
+
+export async function toggleQuickItemCounter(templeId, itemId, showInCounter) {
+  return updateQuickItem(templeId, itemId, { showInCounter })
+}
+
+export async function addMultipleQuickItems(templeId, itemsList) {
+  const localKey = `theertha-quick-items-${templeId}`
+  const local = getLocalData(localKey, [])
+  const addedItems = []
+
+  for (const item of itemsList) {
+    // avoid duplicates by name
+    const existing = local.find((i) => i.name.toLowerCase() === item.name.trim().toLowerCase())
+    if (existing) {
+      // if already exists, just ensure showInCounter is true if user requested
+      if (item.showInCounter && !existing.showInCounter) {
+        await toggleQuickItemCounter(templeId, existing.id, true)
+        existing.showInCounter = true
+      }
+      continue
+    }
+
+    const record = {
+      name: item.name.trim(),
+      amount: Number(item.amount),
+      category: item.category || 'Custom',
+      showInCounter: item.showInCounter !== false,
+      createdAt: new Date().toISOString(),
+    }
+    let newId = `qi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    try {
+      const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${templeId}/quickItems`))
+      newId = newRef.key || newId
+      await set(newRef, { ...record, id: newId })
+    } catch (error) {
+      console.warn('Unable to bulk add quick item to DB:', error)
+    }
+    const added = { id: newId, ...record }
+    addedItems.push(added)
+  }
+
+  const merged = [...local, ...addedItems].sort((a, b) => a.name.localeCompare(b.name))
+  setLocalData(localKey, merged)
+  return merged
 }
 
 export async function deleteQuickItem(templeId, itemId) {
