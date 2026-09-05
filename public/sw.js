@@ -1,14 +1,14 @@
-const CACHE_NAME = 'theertha-pwa-v8'
+const CACHE_NAME = 'theertha-pwa-v9'
 const APP_SHELL = [
-  './',
-  './index.html',
-  './favicon.ico',
-  './manifest.webmanifest',
-  './logo.png',
-  './pwa-192.png',
-  './pwa-512.png',
-  './maskable-icon-512.png',
-  './apple-touch-icon.png',
+  '/',
+  '/index.html',
+  '/favicon.ico',
+  '/manifest.webmanifest',
+  '/logo.png',
+  '/pwa-192.png',
+  '/pwa-512.png',
+  '/maskable-icon-512.png',
+  '/apple-touch-icon.png',
 ]
 
 self.addEventListener('install', (event) => {
@@ -48,10 +48,10 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request)
         .then((response) => {
           const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy))
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy))
           return response
         })
-        .catch(() => caches.match('./index.html')),
+        .catch(() => caches.match('/index.html')),
     )
     return
   }
