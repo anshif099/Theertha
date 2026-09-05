@@ -4,6 +4,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import FloatingParticles from '../components/FloatingParticles.jsx'
 import { findTempleByLoginId } from '../lib/templeStore.js'
 import { getTempleSession, startTempleSession } from '../lib/templeSession.js'
+import { navigateTo } from '../lib/router.js'
 
 export default function TempleLoginPage() {
   const [loginId, setLoginId] = useState('')
@@ -12,7 +13,7 @@ export default function TempleLoginPage() {
 
   useEffect(() => {
     if (getTempleSession()) {
-      window.location.href = '/temple/dashboard'
+      navigateTo('/temple/dashboard')
     }
   }, [])
 
@@ -31,7 +32,7 @@ export default function TempleLoginPage() {
       }
 
       startTempleSession(temple)
-      window.location.href = '/temple/dashboard'
+      navigateTo('/temple/dashboard')
     } catch (lookupError) {
       console.warn('Temple login failed:', lookupError)
       setError('Unable to verify this login ID right now.')

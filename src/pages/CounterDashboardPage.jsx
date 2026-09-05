@@ -19,6 +19,7 @@ import {
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
+import { navigateTo } from '../lib/router.js'
 
 
 function fmtINR(n) {
@@ -471,7 +472,7 @@ export default function CounterDashboardPage() {
   /* redirect if no session */
   useEffect(() => {
     if (!counterSession) {
-      window.location.href = '/temple/counter'
+      navigateTo('/temple/counter')
     }
   }, [counterSession])
 
@@ -758,7 +759,7 @@ export default function CounterDashboardPage() {
     } catch {
       sessionStorage.setItem('theertha-last-receipt', JSON.stringify(buildReceiptPayload()))
     }
-    window.location.href = '/temple/counter/receipt-preview'
+    navigateTo('/temple/counter/receipt-preview')
   }
 
   async function handleConfirmReceipt() {
@@ -826,7 +827,7 @@ export default function CounterDashboardPage() {
 
   function handleLogout() {
     sessionStorage.removeItem('theertha-counter-session')
-    window.location.href = '/temple/counter'
+    navigateTo('/temple/counter')
   }
 
   if (!counterSession) return null

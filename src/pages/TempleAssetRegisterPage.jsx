@@ -27,6 +27,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { addAsset, getNextAssetId } from '../lib/assetStore.js'
+import { navigateTo } from '../lib/router.js'
 
 /* ── Category / sub-category map ── */
 const CATEGORY_MAP = {
@@ -193,7 +194,7 @@ export default function TempleAssetRegisterPage() {
   }, [session, form.category])
 
   useEffect(() => {
-    if (!session) { window.location.href = '/temple-login'; return }
+    if (!session) { navigateTo('/temple-login'); return }
     getRegisteredTemple(session.id)
       .then((t) => { if (t) setTemple(t) })
       .catch(() => {})
@@ -262,7 +263,7 @@ export default function TempleAssetRegisterPage() {
       setSuccess(postToLedger
         ? `Asset "${form.name}" registered and posted to ledger.`
         : `Draft saved for "${form.name}".`)
-      setTimeout(() => { window.location.href = '/temple/assets' }, 1500)
+      setTimeout(() => { navigateTo('/temple/assets') }, 1500)
     } catch {
       setError('Failed to save asset. Please try again.')
     } finally {
@@ -315,7 +316,7 @@ export default function TempleAssetRegisterPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] font-semibold text-[#F7D77C] text-sm">{initials}</span>
-              <button type="button" onClick={() => { endTempleSession(); window.location.href = '/temple-login' }}
+              <button type="button" onClick={() => { endTempleSession(); navigateTo('/temple-login') }}
                 className="flex items-center gap-2 rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-[#F8F6F0] hover:bg-[#123761]">
                 <LogOut size={15} />Logout
               </button>

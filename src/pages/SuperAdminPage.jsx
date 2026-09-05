@@ -14,6 +14,7 @@ import {
   loadRegisteredTemples,
   loadTemples,
 } from '../lib/templeStore.js'
+import { navigateTo } from '../lib/router.js'
 
 export default function SuperAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(hasAdminSession)
@@ -112,7 +113,7 @@ export default function SuperAdminPage() {
   }
 
   function handleEditTemple(temple) {
-    window.location.href = `/superadmin/temples/${temple.id}/edit`
+    navigateTo(`/superadmin/temples/${temple.id}/edit`)
   }
 
   if (!isAuthenticated) {

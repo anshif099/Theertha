@@ -35,6 +35,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadTodayReceipts, updatePoojaStatus, loadPoojaStatuses, loadPriests, loadSlotsConfig } from '../lib/settingsStore.js'
+import { navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -113,7 +114,7 @@ export default function TempleNadavaravuPage() {
 
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return undefined
     }
 

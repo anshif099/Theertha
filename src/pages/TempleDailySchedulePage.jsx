@@ -26,6 +26,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadTodayReceipts } from '../lib/settingsStore.js'
+import { getNormalizedPath, navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -73,7 +74,7 @@ function fmtDate(s) {
 }
 
 function SidebarContent({ temple, onClose }) {
-  const activeHref = window.location.pathname
+  const activeHref = getNormalizedPath()
   return (
     <>
       <a href="/" aria-label="Back to THEERTHA"><BrandMark compact /></a>
@@ -147,7 +148,7 @@ export default function TempleDailySchedulePage() {
 
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return
     }
     getRegisteredTemple(session.id)
@@ -235,7 +236,7 @@ export default function TempleDailySchedulePage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-sm font-semibold text-[#F7D77C]">{initials}</span>
-              <button type="button" onClick={() => { endTempleSession(); window.location.href = '/temple-login' }}
+              <button type="button" onClick={() => { endTempleSession(); navigateTo('/temple-login') }}
                 className="flex items-center gap-2 rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-[#F8F6F0] hover:bg-[#123761]">
                 <LogOut size={15} /> Logout
               </button>

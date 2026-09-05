@@ -23,6 +23,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadTodayReceipts, loadAccountTransactions } from '../lib/settingsStore.js'
+import { navigateTo } from '../lib/router.js'
 import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
 const mainMenuItems = [
@@ -83,7 +84,7 @@ export default function TempleDashboardPage() {
 
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return undefined
     }
 
@@ -227,7 +228,7 @@ export default function TempleDashboardPage() {
 
   function handleLogout() {
     endTempleSession()
-    window.location.href = '/temple-login'
+    navigateTo('/temple-login')
   }
 
   if (!session) {

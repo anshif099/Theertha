@@ -3,6 +3,7 @@ import { Hash, LogIn, ReceiptText } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import FloatingParticles from '../components/FloatingParticles.jsx'
 import { findCounterByLoginId } from '../lib/counterStore.js'
+import { navigateTo } from '../lib/router.js'
 
 export default function CounterLoginPage() {
   const [loginId, setLoginId] = useState('')
@@ -36,7 +37,7 @@ export default function CounterLoginPage() {
         }),
       )
 
-      window.location.href = '/temple/counter/dashboard'
+      navigateTo('/temple/counter/dashboard')
     } catch (err) {
       console.warn('Counter login failed:', err)
       setError('Unable to verify this Login ID right now. Please try again.')

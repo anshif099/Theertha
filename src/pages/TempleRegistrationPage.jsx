@@ -13,7 +13,7 @@ import {
   getTemple,
   saveTemple,
 } from '../lib/templeStore.js'
-import { getNormalizedPath } from '../lib/router.js'
+import { getNormalizedPath, navigateTo } from '../lib/router.js'
 
 function getRouteState() {
   const parts = getNormalizedPath().split('/').filter(Boolean)
@@ -85,7 +85,7 @@ export default function TempleRegistrationPage() {
 
     try {
       await saveTemple(temple)
-      window.location.href = '/superadmin'
+      navigateTo('/superadmin')
     } catch (error) {
       console.warn('Unable to save temple:', error)
       setSaveError('Temple could not be saved to Realtime Database.')
@@ -167,7 +167,7 @@ export default function TempleRegistrationPage() {
           editingTemple={editingTemple}
           isSaving={isSaving}
           onCancel={() => {
-            window.location.href = '/superadmin'
+            navigateTo('/superadmin')
           }}
           onSave={handleSaveTemple}
           saveError={saveError}

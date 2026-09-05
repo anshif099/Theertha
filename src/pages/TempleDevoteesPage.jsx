@@ -31,6 +31,7 @@ import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadMemberships, deleteMembership } from '../lib/membershipStore.js'
 import { loadDevotees, deleteDevotee } from '../lib/settingsStore.js'
+import { getNormalizedPath, navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard',  icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -68,7 +69,7 @@ function SidebarContent({ temple, onClose }) {
       <nav className="mt-3 grid gap-2">
         {mainMenuItems.map((item) => {
           const Icon = item.icon
-          const active = window.location.pathname === item.href
+          const active = getNormalizedPath() === item.href
           return (
             <a key={item.label} href={item.href} onClick={onClose}
               className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${active ? 'bg-[#D4A017]/14 text-[#F7D77C]' : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'}`}>
@@ -138,7 +139,7 @@ export default function TempleDevoteesPage() {
 
   // Load members or general devotees when activeTab changes
   useEffect(() => {
-    if (!session) { window.location.href = '/temple-login'; return }
+    if (!session) { navigateTo('/temple-login'); return }
     getRegisteredTemple(session.id).then((t) => { if (t) setTemple(t) }).catch(() => {})
     refreshDevoteesList()
   }, [session, activeTab])
@@ -234,7 +235,7 @@ export default function TempleDevoteesPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-sm font-semibold text-[#F7D77C]">{initials}</span>
-              <button type="button" onClick={() => { endTempleSession(); window.location.href = '/temple-login' }}
+              <button type="button" onClick={() => { endTempleSession(); navigateTo('/temple-login') }}
                 className="flex items-center gap-2 rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-[#F8F6F0] hover:bg-[#123761]">
                 <LogOut size={15} />Logout
               </button>

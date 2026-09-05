@@ -2,6 +2,12 @@
 
 export function getBasePath() {
   if (typeof window === 'undefined') return ''
+
+  const viteBase = (import.meta.env.BASE_URL || '').replace(/\/+$/, '')
+  if (viteBase && viteBase !== '') {
+    return viteBase.startsWith('/') ? viteBase : `/${viteBase}`
+  }
+
   const path = window.location.pathname
 
   // 1. Check if pathname matches /<subfolder>/(temple|superadmin|receipt|temple-login)

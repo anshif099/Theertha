@@ -33,6 +33,7 @@ import {
   deleteDonation,
   getNextDonationNo,
 } from '../lib/settingsStore.js'
+import { navigateTo } from '../lib/router.js'
 
 /* ─── Sidebar menu items ─── */
 const mainMenuItems = [
@@ -119,7 +120,7 @@ export default function TempleDonationPage() {
 
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return
     }
     getRegisteredTemple(session.id)
@@ -231,7 +232,7 @@ export default function TempleDonationPage() {
 
   function handleLogout() {
     endTempleSession()
-    window.location.href = '/temple-login'
+    navigateTo('/temple-login')
   }
 
   if (!session) return null

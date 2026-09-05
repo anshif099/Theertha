@@ -40,6 +40,7 @@ import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { getNextReceiptNo, saveReceipt, loadSlotsConfig, saveDevotee, loadAllReceipts, loadStars, loadPriests } from '../lib/settingsStore.js'
 import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates } from '../lib/nakshatraHelper.js'
+import { navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -126,7 +127,7 @@ export default function TempleBookingPage() {
   /* Load Temple, Priests & All Bookings */
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return
     }
 
@@ -1203,7 +1204,7 @@ export default function TempleBookingPage() {
                 type="button"
                 onClick={() => {
                   sessionStorage.setItem('theertha-last-receipt', JSON.stringify(viewReceiptModal))
-                  window.location.href = '/temple/counter/receipt-preview'
+                  navigateTo('/temple/counter/receipt-preview')
                 }}
                 className="flex-1 rounded-xl bg-[#D4A017] py-2.5 text-xs font-bold text-[#07172D] text-center hover:bg-[#F7D77C] transition"
               >

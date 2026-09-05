@@ -27,6 +27,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { getNextVoucherNo, saveExpense, loadExpenses } from '../lib/settingsStore.js'
+import { navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -101,7 +102,7 @@ export default function TempleBillingPage() {
   /* Load Expenses and Voucher Number */
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
       return undefined
     }
 
@@ -213,7 +214,7 @@ export default function TempleBillingPage() {
 
   function handleLogout() {
     endTempleSession()
-    window.location.href = '/temple-login'
+    navigateTo('/temple-login')
   }
 
   /* Compute summary stats */

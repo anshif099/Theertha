@@ -35,6 +35,7 @@ import { addQuickItem, addStar, deleteQuickItem, deleteStar, loadQuickItems, loa
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadMembershipConfig, saveMembershipConfig } from '../lib/membershipStore.js'
+import { navigateTo } from '../lib/router.js'
 
 const mainMenuItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/temple/dashboard' },
@@ -279,7 +280,7 @@ export default function TempleSettingsPage() {
   /* redirect if not logged in */
   useEffect(() => {
     if (!session) {
-      window.location.href = '/temple-login'
+      navigateTo('/temple-login')
     }
   }, [session])
 
@@ -339,7 +340,7 @@ export default function TempleSettingsPage() {
 
   function handleLogout() {
     endTempleSession()
-    window.location.href = '/temple-login'
+    navigateTo('/temple-login')
   }
 
   function handleFormChange(e) {

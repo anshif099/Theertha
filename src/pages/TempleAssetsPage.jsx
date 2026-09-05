@@ -34,6 +34,7 @@ import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
 import { loadAssets, deleteAsset } from '../lib/assetStore.js'
+import { navigateTo } from '../lib/router.js'
 
 /* ── Category icon + colour map ── */
 const CAT_META = {
@@ -425,7 +426,7 @@ export default function TempleAssetsPage() {
   }, [])
 
   useEffect(() => {
-    if (!session) { window.location.href = '/temple-login'; return }
+    if (!session) { navigateTo('/temple-login'); return }
     getRegisteredTemple(session.id).then((t) => { if (t) setTemple(t) }).catch(() => {})
     loadAssets(session.id)
       .then((list) => setAssets(list))
@@ -532,7 +533,7 @@ export default function TempleAssetsPage() {
                 <PlusCircle size={15} />Add asset
               </a>
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] font-semibold text-[#F7D77C] text-sm">{initials}</span>
-              <button type="button" onClick={() => { endTempleSession(); window.location.href = '/temple-login' }}
+              <button type="button" onClick={() => { endTempleSession(); navigateTo('/temple-login') }}
                 className="flex items-center gap-2 rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-[#F8F6F0] hover:bg-[#123761]">
                 <LogOut size={15} />Logout
               </button>

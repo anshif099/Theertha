@@ -9,6 +9,7 @@ import {
   Smartphone,
 } from 'lucide-react'
 import { encodeReceiptPayload } from '../lib/settingsStore.js'
+import { navigateTo } from '../lib/router.js'
 
 function fmtINR(n) {
   return '₹' + Number(n).toLocaleString('en-IN')
@@ -83,7 +84,7 @@ export default function CounterReceiptPreviewPage() {
   }
 
   const handleNewReceipt = () => {
-    window.location.href = '/temple/counter/dashboard'
+    navigateTo('/temple/counter/dashboard')
   }
 
   return (
@@ -117,7 +118,7 @@ export default function CounterReceiptPreviewPage() {
       <header className="no-print flex items-center justify-between border-b border-[#D4A017]/18 bg-[#0B1F3A]/90 px-5 py-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.location.href = '/temple/counter/dashboard'}
+            onClick={() => navigateTo('/temple/counter/dashboard')}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#D4A017]/30 text-[#F7D77C] transition hover:bg-[#D4A017]/10"
             aria-label="Back to dashboard"
           >
