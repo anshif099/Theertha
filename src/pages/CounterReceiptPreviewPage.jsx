@@ -211,20 +211,20 @@ export default function CounterReceiptPreviewPage() {
             <div className="my-1.5 border-b border-dashed border-gray-400" />
 
             <div className="flex justify-between text-[10px] font-bold">
-              <span>{receipt.paymentMethod || 'Cash'} ? {receipt.paymentStatus || 'Paid'}</span>
+              <span>{receipt.paymentMethod || 'Cash'} / {receipt.paymentStatus || 'Paid'}</span>
               <span>Total: {fmtINR(receipt.total)}</span>
             </div>
-            <div className="my-2 flex justify-center" aria-label="Receipt seal">
-              <div className="max-w-[170px] rounded-full border-2 border-double border-gray-700 px-5 py-1 text-center text-[8px] font-bold uppercase leading-tight">
+            <div className="mt-2 flex items-start justify-between gap-3">
+            <div aria-label="Receipt seal">
+              <div className="max-w-[135px] rounded-full border-2 border-double border-gray-700 px-3 py-1 text-center text-[7px] font-bold uppercase leading-tight">
                 <p className="break-words">{receipt.templeName}</p>
-                <p className="text-[11px] tracking-widest">{receipt.paymentStatus === 'Unpaid' ? 'PAYMENT PENDING' : 'RECEIVED'}</p>
+                <p className="text-[9px] tracking-widest">{receipt.paymentStatus === 'Unpaid' ? 'PAYMENT PENDING' : 'RECEIVED'}</p>
                 <p>{receipt.date || receipt.bookingDate}</p>
               </div>
             </div>
 
             {/* Footer QR code and greetings */}
-            <div className="flex items-center justify-center gap-2 text-center">
-              <p className="text-[8px] text-gray-500">Scan to verify</p>
+            <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
               <div className="bg-white">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=${encodeURIComponent(
@@ -235,7 +235,8 @@ export default function CounterReceiptPreviewPage() {
                 />
               </div>
 
-              <p className="text-[8px] text-gray-500">THEERTHA</p>
+              <p className="text-[7px] text-gray-500">Scan to verify</p>
+            </div>
             </div>
           </div>
 
