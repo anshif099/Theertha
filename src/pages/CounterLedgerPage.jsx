@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, LogIn, ReceiptText } from 'lucide-react'
+import { ArrowLeft, Download, LogIn, ReceiptText } from 'lucide-react'
 import { hasAdminSession } from '../lib/adminSession.js'
 import { getTempleSession } from '../lib/templeSession.js'
 import { loadRegisteredTemples } from '../lib/templeStore.js'
 import { loadCounters } from '../lib/counterStore.js'
 import { loadAllReceipts } from '../lib/settingsStore.js'
 import { toAppUrl } from '../lib/router.js'
+import { downloadCounterLedgerPdf } from '../lib/counterLedgerPdf.js'
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`
 const controlClass = 'rounded-lg border border-white/15 bg-[#1E1F25] px-4 py-2 text-sm'
@@ -79,6 +80,8 @@ export default function CounterLedgerPage({ superAdminOnly = false }) {
 }
 
 function CounterLedger({ counter }) {
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
   const [receipts, setReceipts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -101,9 +104,26 @@ function CounterLedger({ counter }) {
   const paid = filtered.filter(receipt => statusOf(receipt) === 'Paid')
   const unpaid = filtered.filter(receipt => statusOf(receipt) === 'Unpaid')
   const total = list => list.reduce((sum, receipt) => sum + Number(receipt.total || 0), 0)
+  async function downloadPdf() {
+    setDownloading(true)
+    setDownloadError('')
+    try {
+      await downloadCounterLedgerPdf({ counter,
+        filters: { status, method, from, to },
+        totals: { count: filtered.length, amount: money(total(filtered)), paidCount: paid.length, paidAmount: money(total(paid)), unpaidCount: unpaid.length, unpaidAmount: money(total(unpaid)) },
+        rows: filtered.map(receipt => [receipt.receiptNo || receipt.id, dateOf(receipt), `${receipt.devoteeName || 'Anonymous'}\n${receipt.mobile || ''}`, receipt.items?.map(item => `${item.name} (${item.qty || 1})`).join(', ') || '—', methodOf(receipt), statusOf(receipt), money(receipt.total)]),
+      })
+    } catch {
+      setDownloadError('Unable to download the PDF. Please try again.')
+    } finally { setDownloading(false) }
+  }
   if (loading) return <p role="status">Loading full ledger…</p>
   if (error) return <p role="alert">{error}</p>
   return <>
+    <div className="mb-5 flex justify-end">
+      <button type="button" disabled={downloading} onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-lg bg-[#D4A017] px-5 py-3 font-bold text-[#07172D] disabled:opacity-50"><Download size={18} />{downloading ? 'Preparing PDF…' : 'Download PDF'}</button>
+    </div>
+    {downloadError && <p role="alert" className="mb-4 text-rose-400">{downloadError}</p>}
     <div className="mb-6 flex flex-wrap gap-4">
       <label className="grid gap-2 text-sm">Payment status<select aria-label="Payment status" value={status} onChange={event => setStatus(event.target.value)} className={controlClass}>{['All', 'Paid', 'Unpaid'].map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="grid gap-2 text-sm">Payment method<select aria-label="Payment method" value={method} onChange={event => setMethod(event.target.value)} className={controlClass}>{['All', ...new Set(receipts.map(methodOf))].map(value => <option key={value}>{value}</option>)}</select></label>
