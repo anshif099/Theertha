@@ -1,3 +1,4 @@
+import ReceiptPersons from '../components/ReceiptPersons.jsx'
 import { useEffect, useState } from 'react'
 import { CheckCircle, AlertTriangle, ReceiptText, ShieldCheck, Landmark, Download, Printer } from 'lucide-react'
 import { loadSingleReceipt, decodeReceiptPayload } from '../lib/settingsStore.js'
@@ -185,7 +186,7 @@ export default function CounterReceiptVerifyPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-[#F8F6F0]/90">
-                    {receipt.items && receipt.items.map((item, idx) => (
+                    {receipt.persons?.length ? <tr><td colSpan={3} className="p-4"><ReceiptPersons persons={receipt.persons} /></td></tr> : receipt.items && receipt.items.map((item, idx) => (
                       <tr key={idx} className="font-semibold">
                         <td className="px-4 py-3">{item.name}</td>
                         <td className="px-4 py-3 text-center">{item.qty}</td>

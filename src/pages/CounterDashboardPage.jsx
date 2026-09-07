@@ -173,6 +173,46 @@ export default function CounterDashboardPage() {
   /* custom item modal */
   const [showCustom, setShowCustom] = useState(false)
 
+  const [persons, setPersons] = useState([{}])
+  const [activePerson, setActivePerson] = useState(0)
+  const allPersons = persons.map((person, index) => index === activePerson ? { name: devoteeName, mobile, starId, items: cartItems } : person)
+  function loadPerson(person, index) {
+    setActivePerson(index)
+    setDevoteeName(person.name || '')
+    setMobile(person.mobile || '')
+    setStarId(person.starId || stars[0]?.id || '')
+    setCartItems(person.items || [])
+    setFoundDevotee(null)
+  }
+  function selectPerson(index) {
+    setPersons(allPersons)
+    loadPerson(allPersons[index], index)
+  }
+  function addPerson() {
+    if (!devoteeName.trim() || !cartItems.length) {
+      alert('Complete this person name and pooja items before adding the next person.')
+      return
+    }
+    setPersons([...allPersons, {}])
+    loadPerson({}, allPersons.length)
+  }
+  function removePerson(index) {
+    const remaining = allPersons.filter((_, i) => i !== index)
+    if (!remaining.length) return
+    const nextIndex = index === activePerson ? Math.max(0, index - 1) : activePerson > index ? activePerson - 1 : activePerson
+    setPersons(remaining)
+    loadPerson(remaining[nextIndex], nextIndex)
+  }
+  function validatePersons() {
+    if (allPersons.some(person => !person.name?.trim() || !person.items?.length)) {
+      alert('Each person needs a name and at least one pooja item. Complete or remove empty persons before saving.')
+      return false
+    }
+    return true
+  }
+
+  const repeatStarId = activePerson === 0 ? starId : persons[0]?.starId
+
   /* multi-date repeat booking state */
   const [isRepeatBooking, setIsRepeatBooking] = useState(false)
   const [repeatMode, setRepeatMode] = useState('nakshatra') // 'nakshatra' (Star-based) or 'date' (Fixed Monthly Day)
@@ -186,7 +226,7 @@ export default function CounterDashboardPage() {
       if (repeatMode === 'date') {
         dates = getRepeatingFixedDates(bookingDate, repeatMonths)
       } else {
-        const selectedStar = stars.find((s) => s.id === starId) || ALL_27_NAKSHATRAS[0]
+        const selectedStar = stars.find((s) => s.id === repeatStarId) || ALL_27_NAKSHATRAS[0]
         const targetStarName = selectedStar ? selectedStar.name : 'Ashwathi'
         dates = getRepeatingNakshatraDates(targetStarName, bookingDate, repeatMonths)
       }
@@ -194,47 +234,13 @@ export default function CounterDashboardPage() {
     } else {
       setRepeatDates([])
     }
-  }, [isRepeatBooking, repeatMode, starId, bookingDate, repeatMonths, stars])
+  }, [isRepeatBooking, repeatMode, repeatStarId, bookingDate, repeatMonths, stars])
 
   function toggleRepeatDate(index) {
     setRepeatDates((prev) =>
       prev.map((item, idx) => (idx === index ? { ...item, selected: !item.selected } : item)),
     )
   }
-
-  /* Total Quantity across all items in cart */
-  const totalCartQty = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
-  }, [cartItems])
-
-  /* Additional persons when QTY >= 2 */
-  const [additionalPersons, setAdditionalPersons] = useState([])
-
-  /* Auto-sync additional persons rows when totalCartQty changes */
-  useEffect(() => {
-    if (totalCartQty >= 2) {
-      const needed = totalCartQty - 1 // 1 for primary devotee + (totalCartQty - 1) for extra persons
-      setAdditionalPersons((prev) => {
-        const next = [...prev]
-        if (next.length < needed) {
-          for (let i = next.length; i < needed; i++) {
-            next.push({
-              id: Date.now() + i + Math.random(),
-              name: '',
-              starId: starId || (stars[0]?.id || ''),
-              date: bookingDate
-            })
-          }
-        } else if (next.length > needed) {
-          next.length = needed
-        }
-        return next
-      })
-    } else {
-      setAdditionalPersons([])
-    }
-  }, [totalCartQty, bookingDate, starId, stars])
-
 
   /* ── Auto Slot Scheduling Logic ── */
   function getTodayPlus10() {
@@ -563,10 +569,7 @@ export default function CounterDashboardPage() {
   }, [counterSession])
 
   /* totals */
-  const total = useMemo(
-    () => cartItems.reduce((sum, c) => sum + c.amount * c.qty, 0),
-    [cartItems],
-  )
+  const total = allPersons.reduce((sum, person) => sum + (person.items || []).reduce((subtotal, item) => subtotal + item.amount * item.qty, 0), 0)
 
   /* cart helpers */
   function addToCart(item) {
@@ -619,18 +622,14 @@ export default function CounterDashboardPage() {
 
   /* build the receipt payload */
   function buildReceiptPayload() {
-    const selectedStar = stars.find((s) => s.id === starId)
     const selectedPriest = priests.find((p) => p.id === priestId)
 
-    const formattedAdditionalPersons = additionalPersons.map((p, idx) => {
-      const sObj = stars.find((s) => s.id === p.starId) || ALL_27_NAKSHATRAS[0]
-      return {
-        personNo: idx + 2,
-        name: p.name.trim() || `Person #${idx + 2}`,
-        starName: sObj ? sObj.name : '',
-        date: p.date || bookingDate
-      }
-    })
+    const receiptPersons = allPersons.map((person, index) => ({
+      personNo: index + 1, name: person.name.trim(), mobile: person.mobile || '',
+      starName: stars.find(star => star.id === person.starId)?.name || '',
+      items: person.items.map(item => ({ name: item.name, amount: item.amount, qty: item.qty })),
+      total: person.items.reduce((sum, item) => sum + item.amount * item.qty, 0),
+    }))
 
     return {
       receiptNo,
@@ -641,12 +640,13 @@ export default function CounterDashboardPage() {
       templeName:    counterSession.templeName,
       templeContact: templeData?.contact || '',
       templeDistrict: templeData?.district || '',
-      devoteeName,
-      mobile,
-      starName:      selectedStar?.name || '',
-      additionalPersons: formattedAdditionalPersons,
+      devoteeName: receiptPersons[0].name,
+      mobile: receiptPersons[0].mobile,
+      starName: receiptPersons[0].starName,
+      persons: receiptPersons,
+      additionalPersons: [],
       remarks,
-      items:         cartItems.map((c) => ({ name: c.name, amount: c.amount, qty: c.qty })),
+      items: receiptPersons.flatMap(person => person.items.map(item => ({ ...item, personNo: person.personNo, personName: person.name, starName: person.starName }))),
       total,
       paymentMethod,
       paymentStatus,
@@ -658,6 +658,17 @@ export default function CounterDashboardPage() {
     }
   }
 
+  async function savePersonsHistory(receipt, multiplier = 1) {
+    for (const person of receipt.persons || []) {
+      if (!person.mobile?.trim()) continue
+      await saveDevotee(counterSession.templeId, {
+        devoteeName: person.name, mobile: person.mobile,
+        starName: person.starName, receiptId: receipt.id, receiptNo: receipt.receiptNo,
+        total: person.total * multiplier, paymentStatus: receipt.paymentStatus,
+      })
+    }
+  }
+
   /* new receipt */
   function handleNewReceipt() {
     if (!counterSession) return
@@ -665,6 +676,8 @@ export default function CounterDashboardPage() {
     setMobile('')
     setStarId(stars[0]?.id || '')
     setRemarks('')
+    setPersons([{}])
+    setActivePerson(0)
     setCartItems([])
     setPaymentMethod('Cash')
     setPaymentStatus('Paid')
@@ -683,10 +696,7 @@ export default function CounterDashboardPage() {
   }
 
   async function handleSaveDraft() {
-    if (cartItems.length === 0) {
-      alert('Please add at least 1 item / seva to the cart first.')
-      return
-    }
+    if (!validatePersons()) return
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
     
     try {
@@ -714,10 +724,7 @@ export default function CounterDashboardPage() {
   }
 
   async function handlePrint() {
-    if (cartItems.length === 0) {
-      alert('Please add at least 1 item / seva to the cart first.')
-      return
-    }
+    if (!validatePersons()) return
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
 
     try {
@@ -739,24 +746,14 @@ export default function CounterDashboardPage() {
           if (!firstSaved) firstSaved = saved
         }
 
-        if (mobile && mobile.trim()) {
-          const selectedStar = stars.find((s) => s.id === starId)
-          await saveDevotee(counterSession.templeId, {
-            devoteeName,
-            mobile,
-            starId,
-            starName: selectedStar?.name || '',
-            receiptId: firstSaved.id,
-            receiptNo: firstSaved.receiptNo,
-            total: total * activeRepeatDates.length,
-            paymentStatus: paymentStatus
-          })
-        }
+        await savePersonsHistory(firstSaved, activeRepeatDates.length)
 
         const masterReceipt = {
           ...firstSaved,
           total: total * activeRepeatDates.length,
-          items: cartItems.map((c) => ({
+          persons: firstSaved.persons.map(person => ({ ...person, total: person.total * activeRepeatDates.length, items: person.items.map(item => ({ ...item, qty: item.qty * activeRepeatDates.length })) })),
+          items: firstSaved.items.map((c) => ({
+            ...c,
             name: `${c.name} (${activeRepeatDates.length} Months Repeat)`,
             amount: c.amount,
             qty: c.qty * activeRepeatDates.length
@@ -768,19 +765,7 @@ export default function CounterDashboardPage() {
       } else {
         const data = buildReceiptPayload()
         const saved = await saveReceipt(counterSession.templeId, data)
-        if (mobile && mobile.trim()) {
-          const selectedStar = stars.find((s) => s.id === starId)
-          await saveDevotee(counterSession.templeId, {
-            devoteeName,
-            mobile,
-            starId,
-            starName: selectedStar?.name || '',
-            receiptId: saved.id,
-            receiptNo: saved.receiptNo,
-            total: saved.total,
-            paymentStatus: paymentStatus
-          })
-        }
+        await savePersonsHistory(saved, 1)
         sessionStorage.setItem('theertha-last-receipt', JSON.stringify(saved))
       }
     } catch {
@@ -790,10 +775,7 @@ export default function CounterDashboardPage() {
   }
 
   async function handleConfirmReceipt() {
-    if (cartItems.length === 0) {
-      alert('Please add at least 1 item / seva to the cart first.')
-      return
-    }
+    if (!validatePersons()) return
     const activeRepeatDates = isRepeatBooking ? repeatDates.filter((r) => r.selected) : []
 
     try {
@@ -812,36 +794,12 @@ export default function CounterDashboardPage() {
           const saved = await saveReceipt(counterSession.templeId, data)
           if (!firstSaved) firstSaved = saved
         }
-        if (mobile && mobile.trim()) {
-          const selectedStar = stars.find((s) => s.id === starId)
-          await saveDevotee(counterSession.templeId, {
-            devoteeName,
-            mobile,
-            starId,
-            starName: selectedStar?.name || '',
-            receiptId: firstSaved.id,
-            receiptNo: firstSaved.receiptNo,
-            total: total * activeRepeatDates.length,
-            paymentStatus: 'Unpaid'
-          })
-        }
+        await savePersonsHistory(firstSaved, activeRepeatDates.length)
         alert(`Successfully created ${activeRepeatDates.length} unpaid repeating receipts for ${devoteeName || 'devotee'}!`)
       } else {
         const data = buildReceiptPayload()
         const saved = await saveReceipt(counterSession.templeId, data)
-        if (mobile && mobile.trim()) {
-          const selectedStar = stars.find((s) => s.id === starId)
-          await saveDevotee(counterSession.templeId, {
-            devoteeName,
-            mobile,
-            starId,
-            starName: selectedStar?.name || '',
-            receiptId: saved.id,
-            receiptNo: saved.receiptNo,
-            total: saved.total,
-            paymentStatus: 'Unpaid'
-          })
-        }
+        await savePersonsHistory(saved, 1)
         alert('Unpaid receipt confirmed and saved successfully!')
       }
       refreshReceipts()
@@ -953,6 +911,17 @@ export default function CounterDashboardPage() {
 
           {/* Devotee Name */}
           <div className="mt-4">
+            <section className="mb-5 rounded-xl border border-[#D4A017]/30 bg-white/5 p-4" aria-label="Persons in this bill">
+              <h2 className="mb-2 text-sm font-bold text-[#F7D77C]">Persons in this bill ({allPersons.length})</h2>
+              <p className="mb-3 text-xs text-white/60">Add each person's items. Quantity 2 or 3 stays with that person.</p>
+              {allPersons.map((person, index) => <div key={index} className="mb-2 flex items-center gap-2">
+                <button type="button" aria-pressed={index === activePerson} onClick={() => selectPerson(index)} className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs ${index === activePerson ? 'border-[#D4A017] bg-[#D4A017]/15 text-[#F7D77C]' : 'border-white/10 text-white/70'}`}>
+                  Person {index + 1}: {person.name || 'Enter name'} ? {(person.items || []).length} items ? {fmtINR((person.items || []).reduce((sum, item) => sum + item.amount * item.qty, 0))}
+                </button>
+                {allPersons.length > 1 && <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => removePerson(index)} className="p-2 text-rose-400"><X size={14} /></button>}
+              </div>)}
+              <button type="button" onClick={addPerson} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#D4A017] px-3 py-2 text-xs font-bold text-[#07172D]"><UserPlus size={14} />Complete person & add next</button>
+            </section>
             <label htmlFor="devotee-name" className="mb-1.5 block text-xs font-semibold text-[#EFE6D3]/60">
               Devotee Name
             </label>
@@ -1007,110 +976,6 @@ export default function CounterDashboardPage() {
               )}
             </div>
           </div>
-
-          {/* ══ Additional Devotees / Family Members Section (Triggered when QTY >= 2 or when added) ══ */}
-          {(totalCartQty >= 2 || additionalPersons.length > 0) && (
-            <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/90 p-4 space-y-3 shadow-md animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <UserPlus size={16} className="text-[#F7D77C]" />
-                  <div>
-                    <span className="text-xs font-bold text-[#F8F6F0] block">
-                      Additional Persons Details (Total Qty: {totalCartQty})
-                    </span>
-                    <span className="text-[10px] text-[#EFE6D3]/60">
-                      Enter Name, Date & Nakshatra for Person #2 to #{totalCartQty}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdditionalPersons((prev) => [
-                      ...prev,
-                      { id: Date.now() + Math.random(), name: '', starId: starId || (stars[0]?.id || ''), date: bookingDate }
-                    ])
-                  }}
-                  className="flex items-center gap-1 rounded-lg bg-[#D4A017]/20 border border-[#D4A017]/40 px-2.5 py-1 text-[11px] font-bold text-[#F7D77C] hover:bg-[#D4A017] hover:text-[#07172D] transition"
-                >
-                  <Plus size={12} />
-                  + Add Person
-                </button>
-              </div>
-
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#D4A017]/30">
-                {additionalPersons.map((p, idx) => (
-                  <div key={p.id || idx} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#F7D77C]">Person #{idx + 2} Details</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdditionalPersons((prev) => prev.filter((_, i) => i !== idx))
-                        }}
-                        className="text-[11px] text-rose-400 hover:text-rose-300 transition flex items-center gap-0.5"
-                      >
-                        <X size={12} /> Remove
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Name</label>
-                        <input
-                          type="text"
-                          value={p.name}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setAdditionalPersons((prev) =>
-                              prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
-                            )
-                          }}
-                          placeholder={`Person #${idx + 2} Name`}
-                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Star (Nakshatra)</label>
-                        <select
-                          value={p.starId}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setAdditionalPersons((prev) =>
-                              prev.map((item, i) => (i === idx ? { ...item, starId: val } : item))
-                            )
-                          }}
-                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
-                        >
-                          {stars.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-semibold text-[#EFE6D3]/60 mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={p.date}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setAdditionalPersons((prev) =>
-                              prev.map((item, i) => (i === idx ? { ...item, date: val } : item))
-                            )
-                          }}
-                          className="w-full rounded border border-white/10 bg-[#07172D] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#D4A017]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ══ Multi-Date / Repeating Booking Options ══ */}
           <div className="mt-4 rounded-xl border border-[#D4A017]/35 bg-[#0B1F3A]/80 p-4 space-y-3 shadow-md">
@@ -1357,7 +1222,7 @@ export default function CounterDashboardPage() {
         {/* ── RIGHT: Quick Add Items ── */}
         <div className="p-5 xl:flex-1 xl:p-6">
           <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-[#D4A017]/70">
-            Quick Add Items
+            Quick Add Items ? Person {activePerson + 1}: {devoteeName || 'Enter name'}
           </p>
 
           {loading ? (

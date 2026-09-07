@@ -188,7 +188,7 @@ export default function TempleNadavaravuPage() {
               key: itemKey,
               time: mappedTime,
               name: it.name,
-              subtitle: `${r.devoteeName || 'Anonymous'} — ${r.starName || '—'}`,
+              subtitle: `${it.personName || r.devoteeName || 'Anonymous'} — ${r.starName || '—'}`,
               priest: priestName,
               amount: Number(it.amount || 0) * Number(it.qty || 1),
               status: dbStatus,

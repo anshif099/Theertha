@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ReceiptPersons from '../components/ReceiptPersons.jsx'
 import {
   ArrowLeft,
   CheckCircle,
@@ -54,7 +55,7 @@ export default function CounterReceiptPreviewPage() {
   const templeName = receipt.templeName || 'Temple'
 
   // Generate a Whatsapp text message
-  const itemsText = receipt.items
+  const itemsText = receipt.persons?.length ? receipt.persons.map(person => `${person.name}:\n${person.items.map(item => `${item.name} (${item.qty} x ${fmtINR(item.amount)})`).join('\n')}`).join('\n\n') : receipt.items
     ? receipt.items.map((item) => `• ${item.name} (${item.qty} x ${fmtINR(item.amount)})`).join('\n')
     : ''
   const whatsappMsg = encodeURIComponent(
@@ -234,7 +235,7 @@ export default function CounterReceiptPreviewPage() {
 
             {/* Table Items */}
             <div className="grid gap-2">
-              {receipt.items && receipt.items.map((item, idx) => (
+              {receipt.persons?.length ? <ReceiptPersons persons={receipt.persons} /> : receipt.items && receipt.items.map((item, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_50px_70px] text-[11px] font-bold text-gray-700">
                   <div className="text-black break-words leading-tight">{item.name}</div>
                   <div className="text-center">{item.qty}</div>
