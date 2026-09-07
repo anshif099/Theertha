@@ -112,6 +112,17 @@ function fmtINR(n) {
   return '₹' + Number(n).toLocaleString('en-IN')
 }
 
+const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'UPI / Bank', 'Not recorded']
+
+function receiptDate(receipt) {
+  return receipt.bookingDate || receipt.dbDate || receipt.dateStr || receipt.savedAt?.slice(0, 10) || receipt.date || ''
+}
+
+function paymentMethod(record) {
+  const value = String(record.paymentMethod || record.paymentMode || '').trim()
+  return PAYMENT_METHODS.find((method) => method.toLowerCase() === value.toLowerCase()) || value || 'Not recorded'
+}
+
 export default function TempleAccountsPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
@@ -124,6 +135,8 @@ export default function TempleAccountsPage() {
   const [dbTransactions, setDbTransactions] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [showFullLedger, setShowFullLedger] = useState(false)
+  const [ledgerType, setLedgerType] = useState('All')
+  const [ledgerMethod, setLedgerMethod] = useState('All')
 
   /* Date Range Filter State */
   const [filterType, setFilterType] = useState('Monthly')
@@ -180,6 +193,7 @@ export default function TempleAccountsPage() {
   const [newType, setNewType] = useState('Credit') // Credit = Income, Debit = Expense
   const [newAmount, setNewAmount] = useState('')
   const [newStatus, setNewStatus] = useState('Posted')
+  const [newPaymentMethod, setNewPaymentMethod] = useState('Cash')
 
   const templeName = temple?.name || 'Temple'
   const initials = useMemo(() => getInitials(templeName), [templeName])
@@ -246,7 +260,7 @@ export default function TempleAccountsPage() {
   /* Filtered Array Slices strictly by selected view / date ranges */
   const filteredReceipts = useMemo(() => {
     return dbReceipts.filter(r => {
-      const dateStr = r.dateStr || r.date || r.savedAt?.slice(0, 10)
+      const dateStr = receiptDate(r)
       if (!dateStr) return false
       if (filterType === 'Daily') return dateStr === selectedDay
       if (filterType === 'Monthly') return dateStr.startsWith(selectedMonth)
@@ -283,7 +297,9 @@ export default function TempleAccountsPage() {
     const receiptsFormatted = filteredReceipts.map(r => ({
       id: `rcpt-${r.id}`,
       voucherNo: r.receiptNo || 'JV-2026-CTR',
-      date: r.dateStr || r.date || r.savedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      date: receiptDate(r),
+      type: 'Credit',
+      paymentMethod: paymentMethod(r),
       narration: `Counter collection - Devotee: ${r.devoteeName || 'Anonymous'} (Nakshatra: ${r.starName || '—'})`,
       head: 'Pooja income',
       debit: 0,
@@ -306,6 +322,8 @@ export default function TempleAccountsPage() {
         date: e.date || new Date().toISOString().slice(0, 10),
         narration: `${e.remarks || 'Purchase/Utilities payment'} · Paid to ${e.payeeName}`,
         head: mappedHead,
+        type: 'Debit',
+        paymentMethod: paymentMethod(e),
         debit: Number(e.amount || 0),
         credit: 0,
         status: 'Posted',
@@ -319,6 +337,8 @@ export default function TempleAccountsPage() {
       date: t.date,
       narration: t.narration,
       head: t.head,
+      type: t.type,
+      paymentMethod: paymentMethod(t),
       debit: t.type === 'Debit' ? Number(t.amount || 0) : 0,
       credit: t.type === 'Credit' ? Number(t.amount || 0) : 0,
       status: t.status || 'Posted',
@@ -329,6 +349,18 @@ export default function TempleAccountsPage() {
 
     return combined.sort((a, b) => new Date(b.date) - new Date(a.date))
   }, [filteredReceipts, filteredExpenses, filteredTransactions])
+
+  const visibleLedgerEntries = ledgerEntries.filter((entry) =>
+    (ledgerType === 'All' || entry.type === ledgerType) &&
+    (ledgerMethod === 'All' || entry.paymentMethod === ledgerMethod),
+  )
+  const ledgerPaymentMethods = [...new Set([...PAYMENT_METHODS, ...ledgerEntries.map((entry) => entry.paymentMethod)])]
+  const bookingTotals = filteredReceipts.reduce((totals, receipt) => {
+    const status = receipt.paymentStatus === 'Unpaid' ? 'unpaid' : 'paid'
+    totals[status].count += 1
+    totals[status].amount += Number(receipt.total || 0)
+    return totals
+  }, { paid: { count: 0, amount: 0 }, unpaid: { count: 0, amount: 0 } })
 
   /* Computations for Dashboard Statistics strictly based on counter receipts and billing expenses */
   const financeStats = useMemo(() => {
@@ -440,6 +472,7 @@ export default function TempleAccountsPage() {
       type: newType, // 'Debit' or 'Credit'
       amount: amt,
       status: newStatus,
+      paymentMethod: newPaymentMethod,
     }
 
     try {
@@ -447,6 +480,7 @@ export default function TempleAccountsPage() {
       setShowAddModal(false)
       setNewNarration('')
       setNewAmount('')
+      setNewPaymentMethod('Cash')
       setNewDate(new Date().toISOString().slice(0, 10))
       refreshData()
       setNewVoucherNo(`JV-2026-${Math.floor(892 + Math.random() * 100)}`)
@@ -713,6 +747,20 @@ export default function TempleAccountsPage() {
 
           </section>
 
+          <section className="grid gap-4 sm:grid-cols-2 mb-8" aria-label="Booking payment totals">
+            {[
+              { label: 'Total paid bookings', totals: bookingTotals.paid, color: 'text-emerald-400', detail: 'collected' },
+              { label: 'Total unpaid bookings', totals: bookingTotals.unpaid, color: 'text-rose-400', detail: 'pending' },
+            ].map(({ label, totals, color, detail }) => (
+              <article key={label} className="rounded-xl bg-[#1E1F25] border border-white/5 p-5 shadow-2xl">
+                <h2 className={`text-xs font-extrabold uppercase tracking-widest ${color}`}>{label}</h2>
+                <p className={`font-display mt-3 text-3xl font-black ${color}`}>{loadingData ? '…' : totals.count}</p>
+                <p className="mt-2 text-sm font-semibold text-[#F8F6F0]">{loadingData ? 'Loading…' : `${fmtINR(totals.amount)} ${detail}`}</p>
+                <p className="mt-3 text-xs text-[#EFE6D3]/50">{filterLabel}</p>
+              </article>
+            ))}
+          </section>
+
           {/* Income & Expense Breakdown Progress Bars */}
           <section className="grid gap-6 md:grid-cols-2 mb-8">
             
@@ -815,7 +863,7 @@ export default function TempleAccountsPage() {
             <div className="border-b border-white/5 px-5 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-[#F8F6F0]">Journal Ledger Log</h2>
-                <p className="text-xs text-[#EFE6D3]/40 mt-0.5">Dual credit/debit double entry bookkeeping</p>
+                <p className="text-xs text-[#EFE6D3]/40 mt-0.5">Receipts, expenses and journal entries — {filterLabel}</p>
               </div>
               <button
                 type="button"
@@ -827,6 +875,23 @@ export default function TempleAccountsPage() {
               </button>
             </div>
 
+            <div className="flex flex-wrap gap-4 border-b border-white/5 px-5 py-4">
+              <label className="grid gap-2 text-xs font-semibold text-[#EFE6D3]/70">
+                Entry type
+                <select aria-label="Entry type" value={ledgerType} onChange={(event) => setLedgerType(event.target.value)} className="rounded-lg border border-white/10 bg-[#141519] px-3 py-2 text-[#F8F6F0]">
+                  <option value="All">All entry types</option>
+                  <option value="Credit">Credit (Income)</option>
+                  <option value="Debit">Debit (Expense)</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-xs font-semibold text-[#EFE6D3]/70">
+                Payment method
+                <select aria-label="Payment method" value={ledgerMethod} onChange={(event) => setLedgerMethod(event.target.value)} className="rounded-lg border border-white/10 bg-[#141519] px-3 py-2 text-[#F8F6F0]">
+                  <option value="All">All payment methods</option>
+                  {ledgerPaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+              </label>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                 <thead>
@@ -835,6 +900,8 @@ export default function TempleAccountsPage() {
                     <th className="px-5 py-3.5">Date</th>
                     <th className="px-5 py-3.5">Narration</th>
                     <th className="px-5 py-3.5">Account head</th>
+                    <th className="px-5 py-3.5">Entry type</th>
+                    <th className="px-5 py-3.5">Payment method</th>
                     <th className="px-5 py-3.5 text-right">Debit ₹</th>
                     <th className="px-5 py-3.5 text-right">Credit ₹</th>
                     <th className="px-5 py-3.5 text-center">Status</th>
@@ -843,18 +910,18 @@ export default function TempleAccountsPage() {
                 <tbody className="divide-y divide-white/5">
                   {loadingData ? (
                     <tr>
-                      <td colSpan="7" className="px-5 py-12 text-center text-sm font-semibold text-[#EFE6D3]/40">
+                      <td colSpan="9" className="px-5 py-12 text-center text-sm font-semibold text-[#EFE6D3]/40">
                         Synchronizing real-time balance records...
                       </td>
                     </tr>
-                  ) : ledgerEntries.length === 0 ? (
+                  ) : visibleLedgerEntries.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-5 py-12 text-center text-sm font-semibold text-[#EFE6D3]/40">
-                        No transactions recorded yet this month.
+                      <td colSpan="9" className="px-5 py-12 text-center text-sm font-semibold text-[#EFE6D3]/40">
+                        No transactions match the selected period and filters.
                       </td>
                     </tr>
                   ) : (
-                    (showFullLedger ? ledgerEntries : ledgerEntries.slice(0, 3)).map((txn) => {
+                    (showFullLedger ? visibleLedgerEntries : visibleLedgerEntries.slice(0, 3)).map((txn) => {
                       const isPending = txn.status === 'Pending'
                       return (
                         <tr
@@ -876,6 +943,8 @@ export default function TempleAccountsPage() {
                               {txn.head}
                             </span>
                           </td>
+                          <td className="px-5 py-4 whitespace-nowrap">{txn.type}</td>
+                          <td className="px-5 py-4 whitespace-nowrap">{txn.paymentMethod}</td>
                           <td className="px-5 py-4 text-right font-extrabold text-red-300">
                             {txn.debit > 0 ? Number(txn.debit).toLocaleString('en-IN') : '—'}
                           </td>
@@ -904,8 +973,8 @@ export default function TempleAccountsPage() {
             </div>
 
             <div className="bg-white/2 border-t border-white/5 px-5 py-3 text-[#EFE6D3]/30 font-semibold flex items-center justify-between text-[11px]">
-              <span>Showing {showFullLedger ? ledgerEntries.length : Math.min(3, ledgerEntries.length)} of {ledgerEntries.length} entries this month</span>
-              <span>All balances verified and locked</span>
+              <span>Showing {showFullLedger ? visibleLedgerEntries.length : Math.min(3, visibleLedgerEntries.length)} of {visibleLedgerEntries.length} matching entries ? {filterLabel}</span>
+              <span>{ledgerEntries.length} entries in selected period</span>
             </div>
 
           </section>
@@ -916,7 +985,7 @@ export default function TempleAccountsPage() {
       {/* Add Entry Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#1E1F25] p-6 shadow-2xl text-[#EFE6D3]">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border border-white/10 bg-[#1E1F25] p-6 shadow-2xl text-[#EFE6D3]">
             <div className="mb-5 flex items-center justify-between border-b border-white/5 pb-3">
               <h3 className="text-lg font-bold text-[#F8F6F0]">New Journal Entry</h3>
               <button
@@ -1006,6 +1075,13 @@ export default function TempleAccountsPage() {
                   className="w-full rounded-lg border border-white/10 bg-[#141519] px-3 py-2 text-sm text-white outline-none"
                 />
               </div>
+
+              <label className="grid gap-1.5 text-white/70">
+                Payment method
+                <select aria-label="Payment method" value={newPaymentMethod} onChange={(event) => setNewPaymentMethod(event.target.value)} className="w-full rounded-lg border border-white/10 bg-[#141519] px-3 py-2 text-sm text-white outline-none">
+                  {PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+              </label>
 
               <div>
                 <label className="mb-1.5 block text-white/70">Status</label>
