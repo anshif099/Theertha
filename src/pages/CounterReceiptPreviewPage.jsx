@@ -177,14 +177,14 @@ export default function CounterReceiptPreviewPage() {
 
             <table className="w-full table-fixed border-collapse text-left text-[10px] leading-tight" aria-label="Receipt items">
               <thead><tr className="border-b border-dotted border-gray-400">
-                <th className="w-[27%] py-1 pr-1">Name</th><th className="w-[43%] py-1 pr-1">Pooja</th><th className="w-[10%] py-1 text-center">Qty</th><th className="w-[20%] py-1 text-right">Price</th>
+                <th className="w-[35%] py-1 pr-1">Name / Nakshathra</th><th className="w-[35%] py-1 pr-1">Pooja</th><th className="w-[10%] py-1 text-center">Qty</th><th className="w-[20%] py-1 text-right">Price</th>
               </tr></thead>
               <tbody>
                 {(receipt.persons?.length
-                  ? receipt.persons.flatMap(person => (person.items || []).map(item => ({ ...item, personName: person.name })))
-                  : (receipt.items || []).map(item => ({ ...item, personName: item.personName || receipt.devoteeName || 'Devotee' }))
+                  ? receipt.persons.flatMap(person => (person.items || []).map(item => ({ ...item, personName: person.name, starName: person.starName || '' })))
+                  : (receipt.items || []).map(item => ({ ...item, personName: item.personName || receipt.devoteeName || 'Devotee', starName: item.starName || receipt.starName || '' }))
                 ).map((item, index) => <tr key={index} className="align-top break-inside-avoid">
-                  <td className="py-1 pr-1 break-words">{item.personName}</td><td className="py-1 pr-1 break-words">{item.name}</td><td className="py-1 text-center">{item.qty}</td><td className="py-1 text-right whitespace-nowrap">{fmtINR(item.amount * item.qty)}</td>
+                  <td className="py-1 pr-1 break-words">{item.personName}{item.starName && <span className="text-[9px]"> ({item.starName})</span>}</td><td className="py-1 pr-1 break-words">{item.name}</td><td className="py-1 text-center">{item.qty}</td><td className="py-1 text-right whitespace-nowrap">{fmtINR(item.amount * item.qty)}</td>
                 </tr>)}
               </tbody>
             </table>
