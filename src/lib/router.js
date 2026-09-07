@@ -21,7 +21,7 @@ export function getBasePath() {
   if (trimmed) {
     const segments = trimmed.split('/').filter(Boolean)
     const first = segments[0]
-    if (first && !['temple', 'superadmin', 'receipt', 'temple-login'].includes(first)) {
+    if (first && first.toLowerCase() === 'theertha') {
       return `/${first}`
     }
   }
