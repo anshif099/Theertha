@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { LayoutDashboard, LogOut, Menu, PlusCircle, Settings2, X } from 'lucide-react'
+import { LayoutDashboard, LogOut, Menu, PlusCircle, Settings2, ReceiptText, X } from 'lucide-react'
 import BrandMark from '../BrandMark.jsx'
 import { getNormalizedPath } from '../../lib/router.js'
 
 const navItems = [
   { label: 'Dashboard', href: '/superadmin', icon: LayoutDashboard },
   { label: 'Temples', href: '/superadmin#temples', icon: PlusCircle },
+  { label: 'Counters', href: '/superadmin/counters', icon: ReceiptText },
   { label: 'Register Temple', href: '/superadmin/temples/new', icon: Settings2 },
 ]
 
