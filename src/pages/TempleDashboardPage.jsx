@@ -3,7 +3,9 @@ import {
   Building2,
   CalendarCheck,
   CalendarDays,
+  CheckCircle,
   ClipboardList,
+  Clock,
   FileText,
   HandCoins,
   Heart,
@@ -61,6 +63,10 @@ function transactionStatusClass(status) {
     return 'bg-emerald-50 text-emerald-700 ring-emerald-200'
   }
 
+  if (status === 'Unpaid') {
+    return 'bg-rose-50 text-rose-700 ring-rose-200'
+  }
+
   if (status === 'Pending') {
     return 'bg-amber-50 text-amber-700 ring-amber-200'
   }
@@ -68,11 +74,86 @@ function transactionStatusClass(status) {
   return 'bg-[#EFE6D3] text-[#0B1F3A] ring-[#D4A017]/24'
 }
 
+function SidebarContent({ setSidebarOpen, temple }) {
+  return (
+    <>
+      <a href="/" aria-label="Back to THEERTHA landing page">
+        <BrandMark compact />
+      </a>
+      <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Main Menu
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {mainMenuItems.map((item, index) => {
+          const Icon = item.icon
+          const isActive = index === 0
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
+                isActive
+                  ? 'bg-[#D4A017]/14 text-[#F7D77C]'
+                  : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
+              }`}
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Addons
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {addonItems.map((item) => {
+          const Icon = item.icon
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+        <a
+          href="/temple/settings"
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+        >
+          <Settings size={18} aria-hidden="true" />
+          Settings
+        </a>
+      </div>
+      <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+        <p className="text-sm font-semibold text-[#F7D77C]">
+          Temple Access
+        </p>
+        <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
+          {temple?.loginId}
+        </p>
+      </div>
+    </>
+  )
+}
+
 export default function TempleDashboardPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
   const [isLoading, setIsLoading] = useState(Boolean(session))
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collectionStatus, setCollectionStatus] = useState('All')
+  const [txnFilter, setTxnFilter] = useState('All')
 
   const [receipts, setReceipts] = useState([])
   const [accountTxns, setAccountTxns] = useState([])
@@ -151,12 +232,31 @@ export default function TempleDashboardPage() {
     }
   }, [session])
 
-  const metrics = useMemo(() => {
-    const receiptTotal = receipts
-      .filter((r) => r.paymentStatus !== 'Unpaid')
-      .reduce((sum, r) => sum + Number(r.total || 0), 0)
+  const collectionStats = useMemo(() => {
+    const paidReceipts = receipts.filter((r) => r.paymentStatus !== 'Unpaid')
+    const paidReceiptTotal = paidReceipts.reduce((sum, r) => sum + Number(r.total || 0), 0)
     const txnTotal = accountTxns.reduce((sum, t) => sum + Number(t.amount || 0), 0)
-    const todayTotal = receiptTotal + txnTotal
+    const totalPaid = paidReceiptTotal + txnTotal
+    const paidCount = paidReceipts.length + accountTxns.length
+
+    const unpaidReceipts = receipts.filter((r) => r.paymentStatus === 'Unpaid')
+    const totalUnpaid = unpaidReceipts.reduce((sum, r) => sum + Number(r.total || 0), 0)
+    const unpaidCount = unpaidReceipts.length
+
+    const totalAll = totalPaid + totalUnpaid
+    const allCount = paidCount + unpaidCount
+
+    return {
+      totalPaid,
+      paidCount,
+      totalUnpaid,
+      unpaidCount,
+      totalAll,
+      allCount,
+    }
+  }, [receipts, accountTxns])
+
+  const metrics = useMemo(() => {
     const devoteesTotal = receipts.length
     const sevasTotal = receipts.reduce((sum, r) => {
       if (r.items && Array.isArray(r.items)) {
@@ -165,33 +265,51 @@ export default function TempleDashboardPage() {
       return sum
     }, 0)
 
+    let currentVal = collectionStats.totalAll
+    let currentLabel = "Today's Collection"
+    let currentTrend = 'Real-time database sync'
+
+    if (collectionStatus === 'Paid') {
+      currentVal = collectionStats.totalPaid
+      currentLabel = "Today's Collection (Paid)"
+      currentTrend = `${collectionStats.paidCount} paid receipt${collectionStats.paidCount === 1 ? '' : 's'}`
+    } else if (collectionStatus === 'Unpaid') {
+      currentVal = collectionStats.totalUnpaid
+      currentLabel = "Today's Collection (Unpaid)"
+      currentTrend = `${collectionStats.unpaidCount} unpaid / pending receipt${collectionStats.unpaidCount === 1 ? '' : 's'}`
+    }
+
     return [
       {
-        label: "Today's Collection",
-        value: todayTotal > 0 ? 'INR ' + todayTotal.toLocaleString('en-IN') : 'INR 0',
-        trend: 'Real-time database sync',
+        id: 'collection',
+        label: currentLabel,
+        value: currentVal > 0 ? 'INR ' + currentVal.toLocaleString('en-IN') : 'INR 0',
+        trend: currentTrend,
         icon: IndianRupee,
       },
       {
+        id: 'devotees',
         label: 'Devotees Today',
         value: devoteesTotal.toLocaleString('en-IN'),
         trend: `${devoteesTotal} total receipts`,
         icon: UsersRound,
       },
       {
+        id: 'sevas',
         label: 'Sevas Booked',
         value: sevasTotal.toLocaleString('en-IN'),
         trend: 'Offerings / seva items',
         icon: CalendarCheck,
       },
       {
+        id: 'fd',
         label: 'Fixed Deposits',
         value: totalFD > 0 ? 'INR ' + totalFD.toLocaleString('en-IN') : 'INR 0',
         trend: 'Active deposit portfolio',
         icon: PiggyBank,
       },
     ]
-  }, [receipts, accountTxns, totalFD])
+  }, [receipts, totalFD, collectionStats, collectionStatus])
 
   const transactions = useMemo(() => {
     // Merge counter receipts and account transactions, sort newest first
@@ -204,7 +322,7 @@ export default function TempleDashboardPage() {
         devotee: r.devoteeName || 'Anonymous Devotee',
         type: itemsList || 'General offering',
         amount: 'INR ' + Number(r.total || 0).toLocaleString('en-IN'),
-        status: 'Paid',
+        status: r.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Paid',
         sortKey: r.savedAt || r.bookingDate || '',
       }
     })
@@ -222,8 +340,17 @@ export default function TempleDashboardPage() {
 
     return [...receiptRows, ...txnRows]
       .sort((a, b) => new Date(b.sortKey || 0) - new Date(a.sortKey || 0))
-      .slice(0, 5)
   }, [receipts, accountTxns])
+
+  const filteredTransactions = useMemo(() => {
+    let list = transactions
+    if (txnFilter === 'Paid') {
+      list = transactions.filter((t) => t.status === 'Paid' || t.status === 'Posted')
+    } else if (txnFilter === 'Unpaid') {
+      list = transactions.filter((t) => t.status === 'Unpaid')
+    }
+    return list.slice(0, 5)
+  }, [transactions, txnFilter])
 
 
   function handleLogout() {
@@ -233,79 +360,6 @@ export default function TempleDashboardPage() {
 
   if (!session) {
     return null
-  }
-
-  function SidebarContent() {
-    return (
-      <>
-        <a href="/" aria-label="Back to THEERTHA landing page">
-          <BrandMark compact />
-        </a>
-        <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Main Menu
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {mainMenuItems.map((item, index) => {
-            const Icon = item.icon
-            const isActive = index === 0
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
-                  isActive
-                    ? 'bg-[#D4A017]/14 text-[#F7D77C]'
-                    : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
-                }`}
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Addons
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {addonItems.map((item) => {
-            const Icon = item.icon
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
-          <a
-            href="/temple/settings"
-            onClick={() => setSidebarOpen(false)}
-            className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-          >
-            <Settings size={18} aria-hidden="true" />
-            Settings
-          </a>
-        </div>
-        <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
-          <p className="text-sm font-semibold text-[#F7D77C]">
-            Temple Access
-          </p>
-          <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
-            {temple?.loginId}
-          </p>
-        </div>
-      </>
-    )
   }
 
   return (
@@ -329,7 +383,7 @@ export default function TempleDashboardPage() {
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <SidebarContent />
+            <SidebarContent setSidebarOpen={setSidebarOpen} temple={temple} />
           </div>
           <button
             type="button"
@@ -344,7 +398,7 @@ export default function TempleDashboardPage() {
 
       {/* ── Desktop sidebar ── */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
-        <SidebarContent />
+        <SidebarContent setSidebarOpen={setSidebarOpen} temple={temple} />
       </aside>
 
       <div className="lg:pl-72">
@@ -398,26 +452,120 @@ export default function TempleDashboardPage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => {
               const Icon = metric.icon
+              const isCollection = metric.id === 'collection'
 
               return (
                 <article
-                  key={metric.label}
-                  className="rounded-lg border border-[#D4A017]/18 bg-white p-5 shadow-[0_16px_42px_rgba(11,31,58,0.08)]"
+                  key={metric.id || metric.label}
+                  className="flex flex-col justify-between rounded-lg border border-[#D4A017]/18 bg-white p-5 shadow-[0_16px_42px_rgba(11,31,58,0.08)] transition duration-200 hover:shadow-lg"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-[#42516A]">
                         {metric.label}
                       </p>
-                      <p className="font-display mt-3 text-3xl font-semibold">
-                        {metric.value}
-                      </p>
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
+                        <Icon size={20} aria-hidden="true" />
+                      </span>
                     </div>
-                    <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#0B1F3A] text-[#F7D77C]">
-                      <Icon size={21} aria-hidden="true" />
-                    </span>
+
+                    {/* Paid & Unpaid 2 options switcher for Today's Collection */}
+                    {isCollection && (
+                      <div className="mt-2.5 flex items-center gap-1 rounded-lg bg-[#0B1F3A]/5 p-1 text-[11px] font-bold">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollectionStatus('All')
+                            setTxnFilter('All')
+                          }}
+                          className={`rounded px-2.5 py-1 transition cursor-pointer ${
+                            collectionStatus === 'All'
+                              ? 'bg-[#0B1F3A] text-[#F7D77C] shadow-sm'
+                              : 'text-[#42516A] hover:text-[#0B1F3A]'
+                          }`}
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollectionStatus('Paid')
+                            setTxnFilter('Paid')
+                          }}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 transition cursor-pointer ${
+                            collectionStatus === 'Paid'
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'text-emerald-700 hover:bg-emerald-50'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${collectionStatus === 'Paid' ? 'bg-white' : 'bg-emerald-600'}`} />
+                          Paid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollectionStatus('Unpaid')
+                            setTxnFilter('Unpaid')
+                          }}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 transition cursor-pointer ${
+                            collectionStatus === 'Unpaid'
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'text-rose-700 hover:bg-rose-50'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${collectionStatus === 'Unpaid' ? 'bg-white' : 'bg-rose-600'}`} />
+                          Unpaid
+                        </button>
+                      </div>
+                    )}
+
+                    <p className="font-display mt-3 text-3xl font-semibold">
+                      {metric.value}
+                    </p>
+
+                    {/* Always visible 2-option breakdown pills for Paid and Unpaid */}
+                    {isCollection && (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#EFE6D3] pt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollectionStatus('Paid')
+                            setTxnFilter('Paid')
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition cursor-pointer ${
+                            collectionStatus === 'Paid'
+                              ? 'bg-emerald-600 text-white ring-2 ring-emerald-500/30'
+                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80 hover:bg-emerald-100'
+                          }`}
+                          title="Click to view Paid collection"
+                        >
+                          <CheckCircle size={12} className={collectionStatus === 'Paid' ? 'text-white' : 'text-emerald-600'} />
+                          <span>Paid: INR {collectionStats.totalPaid.toLocaleString('en-IN')}</span>
+                          <span className="text-[10px] opacity-80">({collectionStats.paidCount})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollectionStatus('Unpaid')
+                            setTxnFilter('Unpaid')
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition cursor-pointer ${
+                            collectionStatus === 'Unpaid'
+                              ? 'bg-rose-600 text-white ring-2 ring-rose-500/30'
+                              : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200/80 hover:bg-rose-100'
+                          }`}
+                          title="Click to view Unpaid collection"
+                        >
+                          <Clock size={12} className={collectionStatus === 'Unpaid' ? 'text-white' : 'text-rose-600'} />
+                          <span>Unpaid: INR {collectionStats.totalUnpaid.toLocaleString('en-IN')}</span>
+                          <span className="text-[10px] opacity-80">({collectionStats.unpaidCount})</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="mt-4 text-sm font-semibold text-[#11875D]">
+
+                  <p className="mt-3.5 text-xs font-semibold text-[#11875D]">
                     {metric.trend}
                   </p>
                 </article>
@@ -427,15 +575,53 @@ export default function TempleDashboardPage() {
 
           <div className="mt-6">
             <section className="rounded-lg border border-[#D4A017]/18 bg-white shadow-[0_18px_54px_rgba(11,31,58,0.08)]">
-              <div className="flex items-center justify-between gap-4 border-b border-[#EFE6D3] px-5 py-4">
-                <h2 className="font-display text-2xl font-semibold">
-                  Recent Transactions
-                </h2>
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EFE6D3] px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="font-display text-2xl font-semibold">
+                    Recent Transactions
+                  </h2>
+                  {/* Paid & Unpaid filter options for transactions */}
+                  <div className="flex items-center gap-1 rounded-lg bg-[#0B1F3A]/5 p-0.5 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setTxnFilter('All')}
+                      className={`rounded-md px-2.5 py-1 transition cursor-pointer ${
+                        txnFilter === 'All'
+                          ? 'bg-[#0B1F3A] text-[#F7D77C]'
+                          : 'text-[#42516A] hover:text-[#0B1F3A]'
+                      }`}
+                    >
+                      All ({transactions.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTxnFilter('Paid')}
+                      className={`rounded-md px-2.5 py-1 transition cursor-pointer ${
+                        txnFilter === 'Paid'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-[#42516A] hover:text-emerald-700'
+                      }`}
+                    >
+                      Paid ({transactions.filter((t) => t.status === 'Paid' || t.status === 'Posted').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTxnFilter('Unpaid')}
+                      className={`rounded-md px-2.5 py-1 transition cursor-pointer ${
+                        txnFilter === 'Unpaid'
+                          ? 'bg-rose-600 text-white shadow-sm'
+                          : 'text-[#42516A] hover:text-rose-700'
+                      }`}
+                    >
+                      Unpaid ({transactions.filter((t) => t.status === 'Unpaid').length})
+                    </button>
+                  </div>
+                </div>
                 <a
-                  href="/temple/dashboard"
+                  href="/temple/accounts"
                   className="text-sm font-semibold text-[#9C7414] transition hover:text-[#0B1F3A]"
                 >
-                  View all
+                  View all in Accounts
                 </a>
               </div>
               <div className="overflow-x-auto">
@@ -449,14 +635,14 @@ export default function TempleDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.length === 0 ? (
+                    {filteredTransactions.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-5 py-8 text-center text-sm font-semibold text-[#42516A]/70">
-                          {loadingReceipts ? 'Loading transactions...' : 'No transactions recorded yet today.'}
+                          {loadingReceipts ? 'Loading transactions...' : `No ${txnFilter === 'All' ? '' : txnFilter.toLowerCase() + ' '}transactions recorded yet today.`}
                         </td>
                       </tr>
                     ) : (
-                      transactions.map((transaction, idx) => (
+                      filteredTransactions.map((transaction, idx) => (
                         <tr
                           key={transaction.id || idx}
                           className="border-b border-[#EFE6D3] transition hover:bg-[#F8F6F0]"
