@@ -86,6 +86,7 @@ export default function TempleNadavaravuPage() {
   const [dbSlotsConfig, setDbSlotsConfig] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All') // All, Done, Live, Upcoming
+  const [paymentFilter, setPaymentFilter] = useState('All')
 
   const templeName = temple?.name || 'Temple'
 
@@ -191,6 +192,7 @@ export default function TempleNadavaravuPage() {
               priest: priestName,
               amount: Number(it.amount || 0) * Number(it.qty || 1),
               status: dbStatus,
+              paymentStatus: r.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Paid',
               isDefault: false,
             })
           })
@@ -208,7 +210,7 @@ export default function TempleNadavaravuPage() {
     }
 
     return list.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
-  }, [dbReceipts, dbStatuses])
+  }, [dbReceipts, dbStatuses, dbSlotsConfig])
 
   /* Status and count filters calculations strictly for devotee bookings from counter receipts */
   const metrics = useMemo(() => {
@@ -217,7 +219,7 @@ export default function TempleNadavaravuPage() {
     const liveCount = sevaRegister.filter(item => ['In progress', 'Live'].includes(item.status)).length
     const upcomingCount = totalCount - completedCount - liveCount
 
-    const totalCollection = sevaRegister.reduce((sum, item) => sum + (item.amount || 0), 0)
+    const totalCollection = sevaRegister.filter(item => item.paymentStatus === 'Paid').reduce((sum, item) => sum + (item.amount || 0), 0)
 
     return {
       totalCount,
@@ -235,18 +237,22 @@ export default function TempleNadavaravuPage() {
       done: sevaRegister.filter(item => item.status === 'Done').length,
       live: sevaRegister.filter(item => ['In progress', 'Live'].includes(item.status)).length,
       upcoming: sevaRegister.filter(item => ['Scheduled', 'Next', 'Upcoming'].includes(item.status)).length,
+      paid: sevaRegister.filter(item => item.paymentStatus === 'Paid').length,
+      unpaid: sevaRegister.filter(item => item.paymentStatus === 'Unpaid').length,
     }
   }, [sevaRegister])
 
 
   // Filter items based on active register tab selection
   const filteredRegisterItems = useMemo(() => {
-    if (activeFilter === 'All') return sevaRegister
-    if (activeFilter === 'Done') return sevaRegister.filter(item => item.status === 'Done')
-    if (activeFilter === 'Live') return sevaRegister.filter(item => ['In progress', 'Live'].includes(item.status))
-    if (activeFilter === 'Upcoming') return sevaRegister.filter(item => ['Scheduled', 'Next', 'Upcoming'].includes(item.status))
-    return sevaRegister
-  }, [sevaRegister, activeFilter])
+    return sevaRegister.filter(item => {
+      if (paymentFilter !== 'All' && item.paymentStatus !== paymentFilter) return false
+      if (activeFilter === 'Done') return item.status === 'Done'
+      if (activeFilter === 'Live') return ['In progress', 'Live'].includes(item.status)
+      if (activeFilter === 'Upcoming') return ['Scheduled', 'Next', 'Upcoming'].includes(item.status)
+      return true
+    })
+  }, [sevaRegister, activeFilter, paymentFilter])
 
   // Handle toggling timeline slot status
   async function handleToggleTimelineStatus(timePart, currentStatus) {
@@ -506,7 +512,7 @@ export default function TempleNadavaravuPage() {
                 ₹{metrics.totalCollection.toLocaleString('en-IN')}
               </p>
               <p className="mt-1.5 text-xs font-semibold text-[#EFE6D3]/50">
-                From {metrics.totalCount} bookings
+                From {tabCounts.paid} paid sevas
               </p>
             </article>
 
@@ -584,6 +590,22 @@ export default function TempleNadavaravuPage() {
                 </div>
               </div>
 
+              <div className="flex flex-wrap items-center gap-2 border-b border-white/5 px-5 py-3" role="group" aria-label="Payment status filters">
+                <span className="mr-2 text-xs font-semibold text-[#EFE6D3]/50">Payment status:</span>
+                {[
+                  { value: 'All', label: 'All payments', count: tabCounts.all },
+                  { value: 'Paid', label: 'Paid', count: tabCounts.paid },
+                  { value: 'Unpaid', label: 'Unpaid', count: tabCounts.unpaid },
+                ].map(({ value, label, count }) => (
+                  <button key={value} type="button" aria-pressed={paymentFilter === value} onClick={() => setPaymentFilter(value)}
+                    className={`rounded-full border px-3 py-1 text-xs font-bold transition ${paymentFilter === value
+                      ? value === 'Unpaid' ? 'border-rose-500/35 bg-rose-500/20 text-rose-400' : 'border-[#D4A017]/35 bg-[#D4A017]/15 text-[#F7D77C]'
+                      : 'border-transparent bg-white/5 text-[#EFE6D3]/50 hover:text-white'}`}>
+                    {label} ({count})
+                  </button>
+                ))}
+              </div>
+
               {/* Data Table */}
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[600px] border-collapse text-left">
@@ -593,14 +615,15 @@ export default function TempleNadavaravuPage() {
                       <th className="px-5 py-3.5">Seva / Devotee</th>
                       <th className="px-5 py-3.5">Priest</th>
                       <th className="px-5 py-3.5 text-right">Amount</th>
-                      <th className="px-5 py-3.5 text-center">Status</th>
+                      <th className="px-5 py-3.5 text-center">Payment</th>
+                      <th className="px-5 py-3.5 text-center">Pooja status</th>
                       <th className="px-5 py-3.5 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRegisterItems.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-5 py-12 text-center text-xs text-[#EFE6D3]/30">
+                        <td colSpan={7} className="px-5 py-12 text-center text-xs text-[#EFE6D3]/30">
                           No sevas matching your filter criteria.
                         </td>
                       </tr>
@@ -626,6 +649,11 @@ export default function TempleNadavaravuPage() {
                             </td>
                             <td className="px-5 py-4 text-right font-mono text-xs font-bold text-[#F7D77C]">
                               {item.amount ? `₹${item.amount.toLocaleString('en-IN')}` : '—'}
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${item.paymentStatus === 'Unpaid' ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                {item.paymentStatus}
+                              </span>
                             </td>
                             <td className="px-5 py-4 text-center">
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadgeClass(item.status)}`}>
