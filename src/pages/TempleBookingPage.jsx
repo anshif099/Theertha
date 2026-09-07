@@ -74,6 +74,79 @@ const RASIS = [
   'Makaram', 'Kumbham', 'Meenam'
 ]
 
+function SidebarContent({ setSidebarOpen, temple }) {
+  return (
+    <>
+      <a href="/" aria-label="Back to THEERTHA landing page">
+        <BrandMark compact />
+      </a>
+      <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Main Menu
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {mainMenuItems.map((item) => {
+          const Icon = item.icon
+          const isCurrent = item.label === 'Booking'
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
+                isCurrent
+                  ? 'bg-[#D4A017]/14 text-[#F7D77C]'
+                  : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
+              }`}
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Addons
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {addonItems.map((item) => {
+          const Icon = item.icon
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+        <a
+          href="/temple/settings"
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+        >
+          <Settings size={18} aria-hidden="true" />
+          Settings
+        </a>
+      </div>
+      <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+        <p className="text-sm font-semibold text-[#F7D77C]">
+          Temple Access
+        </p>
+        <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
+          {temple?.loginId}
+        </p>
+      </div>
+    </>
+  )
+}
+
 export default function TempleBookingPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
@@ -177,7 +250,7 @@ export default function TempleBookingPage() {
   }
 
   /* Filtered Bookings List */
-  const filteredBookings = useMemo(() => {
+  const dateFilteredBookings = useMemo(() => {
     return bookings.filter((item) => {
       const itemDate = item.bookingDate || item.dbDate || ''
       const text = `${item.receiptNo || ''} ${item.devoteeName || ''} ${item.mobile || ''} ${item.starName || ''} ${
@@ -189,19 +262,14 @@ export default function TempleBookingPage() {
         return false
       }
 
-      // 2. Status filter
-      if (statusFilter !== 'all' && item.paymentStatus !== statusFilter) {
-        return false
-      }
-
-      // 3. Date / Time Range Filters
+      // 2. Date / Time Range Filters
       if (singleDate && itemDate !== singleDate) return false
       if (monthFilter && !itemDate.startsWith(monthFilter)) return false
       if (yearFilter && !itemDate.startsWith(yearFilter)) return false
       if (fromDate && itemDate < fromDate) return false
       if (toDate && itemDate > toDate) return false
 
-      // 4. Preset filters
+      // 3. Preset filters
       if (timePreset === 'today' && itemDate !== todayStr) return false
       if (timePreset === 'upcoming' && itemDate <= todayStr) return false
       if (timePreset === 'past' && itemDate >= todayStr) return false
@@ -210,18 +278,49 @@ export default function TempleBookingPage() {
 
       return true
     })
-  }, [bookings, searchTerm, statusFilter, singleDate, monthFilter, yearFilter, fromDate, toDate, timePreset, todayStr])
+  }, [bookings, searchTerm, singleDate, monthFilter, yearFilter, fromDate, toDate, timePreset, todayStr])
+
+  const filteredBookings = useMemo(() => {
+    return dateFilteredBookings.filter((item) => {
+      const itemStatus = item.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Paid'
+      if (statusFilter !== 'all' && itemStatus !== statusFilter) {
+        return false
+      }
+      return true
+    })
+  }, [dateFilteredBookings, statusFilter])
 
   /* Summary Metrics */
   const metrics = useMemo(() => {
     const totalCount = filteredBookings.length
+    const totalAmount = filteredBookings.reduce((sum, b) => sum + Number(b.total || 0), 0)
+
+    const baseTotalCount = dateFilteredBookings.length
+    const basePaidBookings = dateFilteredBookings.filter((b) => b.paymentStatus !== 'Unpaid')
+    const basePaidCount = basePaidBookings.length
+    const basePaidAmount = basePaidBookings.reduce((sum, b) => sum + Number(b.total || 0), 0)
+
+    const baseUnpaidBookings = dateFilteredBookings.filter((b) => b.paymentStatus === 'Unpaid')
+    const baseUnpaidCount = baseUnpaidBookings.length
+    const baseUnpaidAmount = baseUnpaidBookings.reduce((sum, b) => sum + Number(b.total || 0), 0)
+
     const todayCount = bookings.filter((b) => (b.bookingDate || b.dbDate) === todayStr).length
     const upcomingCount = bookings.filter((b) => (b.bookingDate || b.dbDate) > todayStr).length
     const pastCount = bookings.filter((b) => (b.bookingDate || b.dbDate) < todayStr).length
-    const totalAmount = filteredBookings.reduce((sum, b) => sum + Number(b.total || 0), 0)
 
-    return { totalCount, todayCount, upcomingCount, pastCount, totalAmount }
-  }, [bookings, filteredBookings, todayStr])
+    return {
+      totalCount,
+      totalAmount,
+      baseTotalCount,
+      basePaidCount,
+      basePaidAmount,
+      baseUnpaidCount,
+      baseUnpaidAmount,
+      todayCount,
+      upcomingCount,
+      pastCount,
+    }
+  }, [bookings, dateFilteredBookings, filteredBookings, todayStr])
 
   /* Handle Form Submit for New Booking */
   async function handleCreateBooking(e) {
@@ -341,79 +440,6 @@ export default function TempleBookingPage() {
 
   const initials = useMemo(() => getInitials(templeName), [templeName])
 
-  function SidebarContent() {
-    return (
-      <>
-        <a href="/" aria-label="Back to THEERTHA landing page">
-          <BrandMark compact />
-        </a>
-        <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Main Menu
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {mainMenuItems.map((item) => {
-            const Icon = item.icon
-            const isCurrent = item.label === 'Booking'
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
-                  isCurrent
-                    ? 'bg-[#D4A017]/14 text-[#F7D77C]'
-                    : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
-                }`}
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Addons
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {addonItems.map((item) => {
-            const Icon = item.icon
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
-          <a
-            href="/temple/settings"
-            onClick={() => setSidebarOpen(false)}
-            className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-          >
-            <Settings size={18} aria-hidden="true" />
-            Settings
-          </a>
-        </div>
-        <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
-          <p className="text-sm font-semibold text-[#F7D77C]">
-            Temple Access
-          </p>
-          <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
-            {temple?.loginId}
-          </p>
-        </div>
-      </>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-[#07172D] text-[#EFE6D3] font-sans selection:bg-[#D4A017] selection:text-[#0B1F3A]">
       
@@ -435,7 +461,7 @@ export default function TempleBookingPage() {
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <SidebarContent />
+            <SidebarContent setSidebarOpen={setSidebarOpen} temple={temple} />
           </div>
           <button
             type="button"
@@ -450,7 +476,7 @@ export default function TempleBookingPage() {
 
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block">
-        <SidebarContent />
+        <SidebarContent setSidebarOpen={setSidebarOpen} temple={temple} />
       </aside>
 
       <div className="lg:pl-72 flex flex-col min-h-screen">
@@ -520,28 +546,111 @@ export default function TempleBookingPage() {
             <div className="space-y-6">
 
               {/* Summary Cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 p-4 backdrop-blur-md">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className={`text-left rounded-xl border p-4 backdrop-blur-md transition cursor-pointer ${
+                    statusFilter === 'all'
+                      ? 'border-[#D4A017] bg-[#D4A017]/15 ring-2 ring-[#D4A017]/40 shadow-lg'
+                      : 'border-[#D4A017]/24 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
                   <p className="text-xs font-bold text-[#EFE6D3]/60 uppercase">Filtered Bookings</p>
                   <p className="mt-2 font-display text-3xl font-extrabold text-white">{metrics.totalCount}</p>
-                  <p className="mt-1 text-[11px] text-[#F7D77C]">Matches active date/time range</p>
-                </div>
-                <div className="rounded-xl border border-emerald-500/24 bg-emerald-500/5 p-4 backdrop-blur-md">
-                  <p className="text-xs font-bold text-emerald-400 uppercase">Today's Bookings</p>
-                  <p className="mt-2 font-display text-3xl font-extrabold text-emerald-300">{metrics.todayCount}</p>
-                  <p className="mt-1 text-[11px] text-emerald-400/80">Scheduled for today ({todayStr})</p>
-                </div>
-                <div className="rounded-xl border border-blue-500/24 bg-blue-500/5 p-4 backdrop-blur-md">
+                  <p className="mt-1 text-[11px] text-[#F7D77C]">
+                    {statusFilter === 'all' ? 'All active bookings' : `Status: ${statusFilter}`}
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('Paid')}
+                  className={`text-left rounded-xl border p-4 backdrop-blur-md transition cursor-pointer ${
+                    statusFilter === 'Paid'
+                      ? 'border-emerald-500 bg-emerald-500/20 ring-2 ring-emerald-500/40 shadow-lg'
+                      : 'border-emerald-500/24 bg-emerald-500/5 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-emerald-400 uppercase">Paid Bookings</p>
+                    <CheckCircle size={14} className="text-emerald-400" />
+                  </div>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-emerald-300">{metrics.basePaidCount}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-400/90">
+                    ₹{metrics.basePaidAmount.toLocaleString('en-IN')} collected
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('Unpaid')}
+                  className={`text-left rounded-xl border p-4 backdrop-blur-md transition cursor-pointer ${
+                    statusFilter === 'Unpaid'
+                      ? 'border-rose-500 bg-rose-500/20 ring-2 ring-rose-500/40 shadow-lg'
+                      : 'border-rose-500/24 bg-rose-500/5 hover:bg-rose-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-rose-400 uppercase">Unpaid Bookings</p>
+                    <Clock size={14} className="text-rose-400" />
+                  </div>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-rose-300">{metrics.baseUnpaidCount}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-rose-400/90">
+                    ₹{metrics.baseUnpaidAmount.toLocaleString('en-IN')} pending
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimePreset('today')
+                    setSingleDate('')
+                    setMonthFilter('')
+                    setYearFilter('')
+                    setFromDate('')
+                    setToDate('')
+                  }}
+                  className={`text-left rounded-xl border p-4 backdrop-blur-md transition cursor-pointer ${
+                    timePreset === 'today'
+                      ? 'border-teal-500 bg-teal-500/20 ring-2 ring-teal-500/40 shadow-lg'
+                      : 'border-teal-500/24 bg-teal-500/5 hover:bg-teal-500/10'
+                  }`}
+                >
+                  <p className="text-xs font-bold text-teal-400 uppercase">Today's Bookings</p>
+                  <p className="mt-2 font-display text-3xl font-extrabold text-teal-300">{metrics.todayCount}</p>
+                  <p className="mt-1 text-[11px] text-teal-400/80">Scheduled for today</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimePreset('upcoming')
+                    setSingleDate('')
+                    setMonthFilter('')
+                    setYearFilter('')
+                    setFromDate('')
+                    setToDate('')
+                  }}
+                  className={`text-left rounded-xl border p-4 backdrop-blur-md transition cursor-pointer ${
+                    timePreset === 'upcoming'
+                      ? 'border-blue-500 bg-blue-500/20 ring-2 ring-blue-500/40 shadow-lg'
+                      : 'border-blue-500/24 bg-blue-500/5 hover:bg-blue-500/10'
+                  }`}
+                >
                   <p className="text-xs font-bold text-blue-400 uppercase">Upcoming / Future</p>
                   <p className="mt-2 font-display text-3xl font-extrabold text-blue-300">{metrics.upcomingCount}</p>
                   <p className="mt-1 text-[11px] text-blue-400/80">Scheduled future bookings</p>
-                </div>
+                </button>
+
                 <div className="rounded-xl border border-[#D4A017]/24 bg-[#D4A017]/10 p-4 backdrop-blur-md">
                   <p className="text-xs font-bold text-[#F7D77C] uppercase">Total Offering Value</p>
                   <p className="mt-2 font-display text-3xl font-extrabold text-[#F7D77C]">
                     ₹{metrics.totalAmount.toLocaleString('en-IN')}
                   </p>
-                  <p className="mt-1 text-[11px] text-[#EFE6D3]/70">Cumulative filtered total</p>
+                  <p className="mt-1 text-[11px] text-[#EFE6D3]/70 truncate">
+                    Paid: ₹{metrics.basePaidAmount.toLocaleString('en-IN')} · Unpaid: ₹{metrics.baseUnpaidAmount.toLocaleString('en-IN')}
+                  </p>
                 </div>
               </div>
 
@@ -564,7 +673,7 @@ export default function TempleBookingPage() {
                       setSearchTerm('')
                       setStatusFilter('all')
                     }}
-                    className="flex items-center gap-1.5 text-xs font-bold text-[#F7D77C] hover:underline"
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#F7D77C] hover:underline cursor-pointer"
                   >
                     <RefreshCw size={12} />
                     Reset All Filters
@@ -594,7 +703,7 @@ export default function TempleBookingPage() {
                           setFromDate('')
                           setToDate('')
                         }}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
                           timePreset === p.id
                             ? 'bg-[#D4A017] text-[#07172D] shadow-md'
                             : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
@@ -603,6 +712,48 @@ export default function TempleBookingPage() {
                         {p.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Quick Payment Status Filters */}
+                <div className="pt-3 border-t border-white/10">
+                  <label className="block text-xs font-bold text-[#EFE6D3]/60 mb-2">Payment Status Filters:</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('all')}
+                      className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        statusFilter === 'all'
+                          ? 'bg-[#D4A017] text-[#07172D] shadow-md font-extrabold'
+                          : 'bg-white/6 text-[#EFE6D3]/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      All Bookings ({metrics.baseTotalCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('Paid')}
+                      className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        statusFilter === 'Paid'
+                          ? 'bg-emerald-600 text-white shadow-md font-extrabold ring-2 ring-emerald-500/40'
+                          : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20'
+                      }`}
+                    >
+                      <CheckCircle size={13} />
+                      Paid Bookings ({metrics.basePaidCount}) · ₹{metrics.basePaidAmount.toLocaleString('en-IN')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('Unpaid')}
+                      className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        statusFilter === 'Unpaid'
+                          ? 'bg-rose-600 text-white shadow-md font-extrabold ring-2 ring-rose-500/40'
+                          : 'bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20'
+                      }`}
+                    >
+                      <Clock size={13} />
+                      Unpaid Bookings ({metrics.baseUnpaidCount}) · ₹{metrics.baseUnpaidAmount.toLocaleString('en-IN')}
+                    </button>
                   </div>
                 </div>
 
@@ -704,9 +855,9 @@ export default function TempleBookingPage() {
                       onChange={(e) => setStatusFilter(e.target.value)}
                       className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-[#D4A017]"
                     >
-                      <option value="all">All Payment Statuses</option>
-                      <option value="Paid">Paid Only</option>
-                      <option value="Unpaid">Unpaid Only</option>
+                      <option value="all">All Payment Statuses ({metrics.baseTotalCount})</option>
+                      <option value="Paid">Paid Only ({metrics.basePaidCount})</option>
+                      <option value="Unpaid">Unpaid Only ({metrics.baseUnpaidCount})</option>
                     </select>
                   </div>
                 </div>
@@ -714,14 +865,50 @@ export default function TempleBookingPage() {
 
               {/* Bookings Table */}
               <div className="rounded-xl border border-[#D4A017]/24 bg-white/5 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-6 py-4">
                   <div className="flex items-center gap-2">
                     <CalendarCheck size={18} className="text-[#F7D77C]" />
                     <h3 className="font-bold text-white text-base">Bookings Register List</h3>
                   </div>
-                  <span className="rounded-full bg-[#D4A017]/14 px-3 py-1 text-xs font-bold text-[#F7D77C]">
-                    Showing {filteredBookings.length} of {bookings.length} Bookings
-                  </span>
+
+                  {/* Payment Status Filter Buttons */}
+                  <div className="flex items-center gap-1 rounded-lg bg-black/30 p-1 border border-white/10 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('all')}
+                      className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
+                        statusFilter === 'all'
+                          ? 'bg-[#D4A017] text-[#07172D] shadow-md font-extrabold'
+                          : 'text-[#EFE6D3]/70 hover:text-white'
+                      }`}
+                    >
+                      All ({metrics.baseTotalCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('Paid')}
+                      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition cursor-pointer ${
+                        statusFilter === 'Paid'
+                          ? 'bg-emerald-600 text-white shadow-md font-extrabold'
+                          : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                      }`}
+                    >
+                      <CheckCircle size={13} />
+                      Paid ({metrics.basePaidCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('Unpaid')}
+                      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition cursor-pointer ${
+                        statusFilter === 'Unpaid'
+                          ? 'bg-rose-600 text-white shadow-md font-extrabold'
+                          : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
+                      }`}
+                    >
+                      <Clock size={13} />
+                      Unpaid ({metrics.baseUnpaidCount})
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
