@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import ReceiptPersons from '../components/ReceiptPersons.jsx'
 import {
   ArrowLeft,
   CheckCircle,
@@ -90,7 +89,7 @@ export default function CounterReceiptPreviewPage() {
 
   return (
     <div className="min-h-screen bg-[#071828] text-[#F8F6F0] print:bg-white print:text-black">
-      
+
       {/* ── Print Styles (Hidden in screen, shown in print) ── */}
       <style>{`
         @media print {
@@ -106,7 +105,7 @@ export default function CounterReceiptPreviewPage() {
             left: 0;
             top: 0;
             width: 100% !important;
-            max-width: 100% !important;
+            max-width: 80mm !important;
             box-shadow: none !important;
             border: none !important;
             padding: 0 !important;
@@ -141,17 +140,17 @@ export default function CounterReceiptPreviewPage() {
       {/* Main content grid */}
       <main className="mx-auto max-w-5xl px-4 py-8 md:py-12">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-center">
-          
+
           {/* LEFT: Premium thermal paper receipt styling */}
-          <div className="print-area w-full max-w-sm flex-shrink-0 border border-[#D4A017]/24 bg-white p-6 text-black shadow-2xl rounded-xl print:shadow-none print:border-0 print:p-0 print:max-w-[80mm]">
+          <div className="print-area w-full max-w-sm flex-shrink-0 border border-[#D4A017]/24 bg-white p-3 text-black shadow-2xl rounded-xl print:shadow-none print:border-0 print:p-0 print:max-w-[80mm]">
             <div className="text-center">
-              <h2 className="text-base font-extrabold uppercase tracking-wide">{receipt.templeName}</h2>
+              <h2 className="text-sm font-extrabold uppercase tracking-wide">{receipt.templeName}</h2>
               <p className="text-xs font-semibold text-gray-600">
                 {receipt.templeDistrict ? `${receipt.templeDistrict} District` : ''}
                 {receipt.templeContact ? ` · Tel: ${receipt.templeContact}` : ''}
               </p>
-              <div className="my-2.5 border-b border-dashed border-gray-400" />
-              <h3 className="text-sm font-black uppercase tracking-wider">
+              <div className="my-1 border-b border-dashed border-gray-400" />
+              <h3 className="text-[10px] font-black uppercase tracking-wider">
                 {receipt.paymentStatus === 'Unpaid' ? 'DEVASWOM RECEIPT (UNPAID)' : 'DEVASWOM RECEIPT'}
               </h3>
               {receipt.paymentStatus === 'Unpaid' && (
@@ -159,95 +158,42 @@ export default function CounterReceiptPreviewPage() {
                   *** UNPAID — PAYMENT PENDING ***
                 </div>
               )}
-              <div className="my-2.5 border-b border-dashed border-gray-400" />
+              <div className="my-1 border-b border-dashed border-gray-400" />
             </div>
 
             {/* Metadata fields */}
-            <div className="grid grid-cols-2 gap-y-1.5 text-[11px] font-bold text-gray-700">
+            <div className="grid grid-cols-2 gap-y-0.5 text-[9px] font-bold text-gray-700">
               <div>Receipt No:</div>
               <div className="text-right font-mono text-black">{receipt.receiptNo}</div>
-              
+
               <div>Date &amp; Time:</div>
               <div className="text-right text-black">{receipt.date} · {receipt.time}</div>
-              
+
               <div>Counter No:</div>
               <div className="text-right text-black">#{receipt.counterNo} ({receipt.counterName})</div>
             </div>
 
-            <div className="my-3 border-b border-dashed border-gray-300" />
+            <div className="my-1.5 border-b border-dashed border-gray-300" />
 
-            {/* Devotee Info */}
-            <div className="grid grid-cols-2 gap-y-1.5 text-[11px] font-bold text-gray-700">
-              <div>Devotee Name:</div>
-              <div className="text-right text-black">{receipt.devoteeName || '—'}</div>
-              
-              <div>Star (Nakshatra):</div>
-              <div className="text-right text-black">{receipt.starName || '—'}</div>
-
-              <div>Mobile Number:</div>
-              <div className="text-right text-black">{receipt.mobile || '—'}</div>
-
-              {receipt.priestName && (
-                <>
-                  <div>Performing Priest:</div>
-                  <div className="text-right text-black">{receipt.priestName}</div>
-                </>
-              )}
-              
-              {receipt.remarks && (
-                <>
-                  <div>Remarks:</div>
-                  <div className="text-right text-black text-[10px] italic">{receipt.remarks}</div>
-                </>
-              )}
-            </div>
-
-            {/* Additional Devotees Breakdown */}
-            {receipt.additionalPersons && receipt.additionalPersons.length > 0 && (
-              <>
-                <div className="my-2.5 border-b border-dashed border-gray-400" />
-                <div className="text-[10px] font-black uppercase tracking-wide text-gray-800 mb-1">
-                  Additional Devotees Breakdown ({receipt.additionalPersons.length}):
-                </div>
-                <div className="grid gap-1 bg-gray-50 p-2 rounded border border-gray-200 text-[10px] text-gray-800">
-                  {receipt.additionalPersons.map((p, idx) => (
-                    <div key={idx} className="flex justify-between items-center border-b border-gray-200/50 pb-1 last:border-0 last:pb-0">
-                      <span className="font-bold">
-                        P{p.personNo || idx + 2}: {p.name} {p.starName ? `(${p.starName})` : ''}
-                      </span>
-                      <span className="font-mono text-[9px] text-gray-600">{p.date}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div className="my-3 border-b border-dashed border-gray-400" />
-
-            {/* Table Header */}
-            <div className="grid grid-cols-[1fr_50px_70px] text-[11px] font-black uppercase text-gray-800">
-              <div>Pooja / Offering</div>
-              <div className="text-center">Qty</div>
-              <div className="text-right">Amount</div>
-            </div>
-            
-            <div className="my-1.5 border-b border-dotted border-gray-300" />
-
-            {/* Table Items */}
-            <div className="grid gap-2">
-              {receipt.persons?.length ? <ReceiptPersons persons={receipt.persons} /> : receipt.items && receipt.items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_50px_70px] text-[11px] font-bold text-gray-700">
-                  <div className="text-black break-words leading-tight">{item.name}</div>
-                  <div className="text-center">{item.qty}</div>
-                  <div className="text-right text-black">{fmtINR(item.amount * item.qty)}</div>
-                </div>
-              ))}
-            </div>
+            <table className="w-full table-fixed border-collapse text-left text-[10px] leading-tight" aria-label="Receipt items">
+              <thead><tr className="border-b border-dotted border-gray-400">
+                <th className="w-[27%] py-1 pr-1">Name</th><th className="w-[43%] py-1 pr-1">Pooja</th><th className="w-[10%] py-1 text-center">Qty</th><th className="w-[20%] py-1 text-right">Price</th>
+              </tr></thead>
+              <tbody>
+                {(receipt.persons?.length
+                  ? receipt.persons.flatMap(person => (person.items || []).map(item => ({ ...item, personName: person.name })))
+                  : (receipt.items || []).map(item => ({ ...item, personName: item.personName || receipt.devoteeName || 'Devotee' }))
+                ).map((item, index) => <tr key={index} className="align-top break-inside-avoid">
+                  <td className="py-1 pr-1 break-words">{item.personName}</td><td className="py-1 pr-1 break-words">{item.name}</td><td className="py-1 text-center">{item.qty}</td><td className="py-1 text-right whitespace-nowrap">{fmtINR(item.amount * item.qty)}</td>
+                </tr>)}
+              </tbody>
+            </table>
+            {receipt.remarks && <p className="mt-1 text-[9px]">Note: {receipt.remarks}</p>}
 
             {/* Repeating Nakshatra Dates Schedule */}
             {receipt.repeatDatesList && receipt.repeatDatesList.length > 0 && (
               <>
-                <div className="my-2.5 border-b border-dashed border-gray-400" />
+                <div className="my-1 border-b border-dashed border-gray-400" />
                 <div className="text-[10px] font-black uppercase tracking-wide text-gray-800 mb-1">
                   Nakshatra Scheduled Dates ({receipt.repeatDatesList.length} Months):
                 </div>
@@ -262,58 +208,46 @@ export default function CounterReceiptPreviewPage() {
               </>
             )}
 
-            <div className="my-3 border-b border-dashed border-gray-400" />
+            <div className="my-1.5 border-b border-dashed border-gray-400" />
 
-            {/* Net Total & Payment Method / Status */}
-            <div className="flex justify-between items-center text-xs font-black uppercase">
-              <span>Payment Mode:</span>
-              <span className="text-gray-800">{receipt.paymentMethod || 'Cash'}</span>
+            <div className="flex justify-between text-[10px] font-bold">
+              <span>{receipt.paymentMethod || 'Cash'} ? {receipt.paymentStatus || 'Paid'}</span>
+              <span>Total: {fmtINR(receipt.total)}</span>
             </div>
-
-            <div className="mt-1 flex justify-between items-center text-xs font-black uppercase">
-              <span>Payment Status:</span>
-              <span className={`px-2 py-0.5 rounded font-black text-xs ${
-                receipt.paymentStatus === 'Unpaid' 
-                  ? 'bg-rose-100 text-rose-800 border border-rose-400' 
-                  : 'bg-emerald-100 text-emerald-800 border border-emerald-400'
-              }`}>
-                {receipt.paymentStatus || 'PAID'}
-              </span>
+            <div className="my-2 flex justify-center" aria-label="Receipt seal">
+              <div className="max-w-[170px] rounded-full border-2 border-double border-gray-700 px-5 py-1 text-center text-[8px] font-bold uppercase leading-tight">
+                <p className="break-words">{receipt.templeName}</p>
+                <p className="text-[11px] tracking-widest">{receipt.paymentStatus === 'Unpaid' ? 'PAYMENT PENDING' : 'RECEIVED'}</p>
+                <p>{receipt.date || receipt.bookingDate}</p>
+              </div>
             </div>
-
-            <div className="mt-1.5 flex justify-between items-center text-sm font-black uppercase">
-              <span>Net Amount:</span>
-              <span className="text-lg text-black">{fmtINR(receipt.total)}</span>
-            </div>
-
-            <div className="my-3 border-b border-dashed border-gray-400" />
 
             {/* Footer QR code and greetings */}
-            <div className="flex flex-col items-center justify-center text-center">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Scan to Verify</p>
-              <div className="my-2 border border-gray-300 p-2 bg-white rounded-md shadow-sm">
+            <div className="flex items-center justify-center gap-2 text-center">
+              <p className="text-[8px] text-gray-500">Scan to verify</p>
+              <div className="bg-white">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=${encodeURIComponent(
                     `https://theertha-theta.vercel.app/receipt/verify?r=${encodeURIComponent(receipt.receiptNo || '')}&n=${encodeURIComponent(receipt.devoteeName || '')}&s=${encodeURIComponent(receipt.starName || '')}&i=${encodeURIComponent(receipt.items?.[0]?.name ? `${receipt.items[0].name}${receipt.items.length > 1 ? ` +${receipt.items.length - 1} more` : ''}` : 'Pooja Offering')}&a=${encodeURIComponent(receipt.total || 0)}&dt=${encodeURIComponent(receipt.date || receipt.bookingDate || '')}&p=${encodeURIComponent(receipt.paymentStatus || 'Paid')}&m=${encodeURIComponent(receipt.mobile || '')}&t=${encodeURIComponent(receipt.templeName || 'Devaswom Temple')}&templeId=${encodeURIComponent(receipt.templeId || '')}&receiptId=${encodeURIComponent(receipt.id || '')}`
                   )}`}
                   alt="Receipt QR Code"
-                  className="h-[110px] w-[110px] object-contain"
+                  className="h-[48px] w-[48px] object-contain"
                 />
               </div>
-              <p className="text-[10px] font-bold text-gray-600 italic">May the Divine Blessings Be With You Always!</p>
-              <p className="text-[9px] font-semibold text-gray-400 mt-1">THEERTHA Counter Solutions</p>
+
+              <p className="text-[8px] text-gray-500">THEERTHA</p>
             </div>
           </div>
 
           {/* RIGHT: Actions side deck (no-print) */}
           <div className="no-print w-full max-w-sm flex-col gap-5 flex">
-            
+
             {/* Action Card */}
             <div className="rounded-xl border border-[#D4A017]/18 bg-[#0B1F3A] p-6 shadow-xl">
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-[#F7D77C]">
                 Receipt Actions
               </h3>
-              
+
               <div className="grid gap-3">
                 {/* Print button */}
                 <button
