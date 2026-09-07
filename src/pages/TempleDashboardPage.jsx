@@ -1,3 +1,6 @@
+import { localPaymentDate } from '../lib/receiptPayments.js'
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Building2,
@@ -24,7 +27,7 @@ import {
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
 import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
-import { loadTodayReceipts, loadAccountTransactions } from '../lib/settingsStore.js'
+import { loadAllReceipts, loadAccountTransactions } from '../lib/settingsStore.js'
 import { navigateTo } from '../lib/router.js'
 import { loadFixedDeposits } from '../lib/fixedDepositStore.js'
 
@@ -147,6 +150,11 @@ function SidebarContent({ setSidebarOpen, temple }) {
   )
 }
 
+function isTodaysCollection(receipt) {
+  const date = receipt.paymentStatus !== 'Unpaid' && receipt.paidOn ? receipt.paidOn : receipt.dbDate || receipt.bookingDate || receipt.savedAt?.slice(0, 10)
+  return date === localPaymentDate()
+}
+
 export default function TempleDashboardPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
@@ -156,6 +164,7 @@ export default function TempleDashboardPage() {
   const [txnFilter, setTxnFilter] = useState('All')
 
   const [receipts, setReceipts] = useState([])
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) setReceipts(list => [receipt, ...list.filter(item => item.id !== receipt.id)].filter(isTodaysCollection)) })
   const [accountTxns, setAccountTxns] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(true)
   const [totalFD, setTotalFD] = useState(0)
@@ -189,10 +198,10 @@ export default function TempleDashboardPage() {
         }
       })
 
-    loadTodayReceipts(session.id)
+    loadAllReceipts(session.id)
       .then((data) => {
         if (isActive) {
-          setReceipts(data)
+          setReceipts(data.filter(isTodaysCollection))
         }
       })
       .catch((error) => {
@@ -319,6 +328,7 @@ export default function TempleDashboardPage() {
         : 'Offering'
       return {
         id: r.id,
+        receipt: r,
         devotee: r.devoteeName || 'Anonymous Devotee',
         type: itemsList || 'General offering',
         amount: 'INR ' + Number(r.total || 0).toLocaleString('en-IN'),
@@ -664,6 +674,7 @@ export default function TempleDashboardPage() {
                             >
                               {transaction.status}
                             </span>
+                            {transaction.receipt && <ReceiptPaymentAction receipt={transaction.receipt} templeId={session.id} />}
                           </td>
                         </tr>
                       ))

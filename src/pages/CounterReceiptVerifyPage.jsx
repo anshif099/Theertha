@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates } from '../lib/useReceiptPaymentUpdates.js'
 import ReceiptPersons from '../components/ReceiptPersons.jsx'
 import { useEffect, useState } from 'react'
 import { CheckCircle, AlertTriangle, ReceiptText, ShieldCheck, Landmark, Download, Printer } from 'lucide-react'
@@ -9,6 +11,7 @@ function fmtINR(n) {
 
 export default function CounterReceiptVerifyPage() {
   const [receipt, setReceipt] = useState(null)
+  useReceiptPaymentUpdates(({ receipt: updated }) => setReceipt(current => current?.id === updated.id ? updated : current))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -202,7 +205,8 @@ export default function CounterReceiptVerifyPage() {
             <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/10 p-4 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase text-[#EFE6D3]/40">Payment Status</p>
-                <p className="text-xs font-bold text-emerald-400 mt-0.5">Paid via {receipt.paymentMethod}</p>
+                <p className="text-xs font-bold text-emerald-400 mt-0.5">{receipt.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Paid'} via {receipt.paymentMethod}</p>
+                <ReceiptPaymentAction receipt={receipt} />
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold uppercase text-[#EFE6D3]/40">Total Amount</p>

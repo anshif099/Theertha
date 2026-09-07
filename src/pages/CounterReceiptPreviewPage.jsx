@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
@@ -17,6 +19,7 @@ function fmtINR(n) {
 
 export default function CounterReceiptPreviewPage() {
   const [receipt, setReceipt] = useState(null)
+  useReceiptPaymentUpdates(({ receipt: updated }) => setReceipt(current => current?.id === updated.id && current?.templeId === updated.templeId ? updated : current))
   const [copied, setCopied] = useState(false)
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
   const [sendingSms, setSendingSms] = useState(false)
@@ -161,6 +164,7 @@ export default function CounterReceiptPreviewPage() {
               <div className="my-1 border-b border-dashed border-gray-400" />
             </div>
 
+            {receipt.paidOn && <p className="text-[9px] font-bold">Payment received: {receipt.paidOn}</p>}
             {/* Metadata fields */}
             <div className="grid grid-cols-2 gap-y-0.5 text-[9px] font-bold text-gray-700">
               <div>Receipt No:</div>
@@ -219,7 +223,7 @@ export default function CounterReceiptPreviewPage() {
               <div className="max-w-[135px] rounded-full border-2 border-double border-gray-700 px-3 py-1 text-center text-[7px] font-bold uppercase leading-tight">
                 <p className="break-words">{receipt.templeName}</p>
                 <p className="text-[9px] tracking-widest">{receipt.paymentStatus === 'Unpaid' ? 'PAYMENT PENDING' : 'RECEIVED'}</p>
-                <p>{receipt.date || receipt.bookingDate}</p>
+                <p>{receipt.paidOn || receipt.date || receipt.bookingDate}</p>
               </div>
             </div>
 
@@ -250,6 +254,7 @@ export default function CounterReceiptPreviewPage() {
               </h3>
 
               <div className="grid gap-3">
+                <ReceiptPaymentAction receipt={receipt} />
                 {/* Print button */}
                 <button
                   onClick={handlePrint}

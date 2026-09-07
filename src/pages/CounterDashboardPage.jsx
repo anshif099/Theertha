@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchDevoteePayment } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
@@ -148,6 +150,7 @@ export default function CounterDashboardPage() {
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [paymentStatus, setPaymentStatus] = useState('Paid')
   const [foundDevotee, setFoundDevotee] = useState(null)
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === counterSession?.templeId) { setFoundDevotee(person => patchDevoteePayment(person, receipt)); refreshReceipts() } })
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [bookingTime, setBookingTime] = useState(() => {
     const now = new Date()
@@ -347,7 +350,7 @@ export default function CounterDashboardPage() {
       .then((list) => {
         const filtered = list.filter(r => 
           r.counterId === counterSession.counterId && 
-          r.savedAt && r.savedAt.slice(0, 10) === todayStrPrefix
+          (r.paymentStatus === 'Unpaid' ? r.savedAt?.slice(0, 10) : r.paidOn || r.savedAt?.slice(0, 10)) === todayStrPrefix
         )
         setReceipts(filtered)
       })
@@ -1207,6 +1210,7 @@ export default function CounterDashboardPage() {
                           }`}>
                             {r.paymentStatus || 'Paid'}
                           </span>
+                          <ReceiptPaymentAction receipt={r} templeId={counterSession.templeId} />
                         </div>
                       </div>
                     ))

@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useState, useMemo } from 'react'
 import {
   Building2,
@@ -172,6 +174,7 @@ export default function TempleBookingPage() {
 
   /* Selected Receipt Modal */
   const [viewReceiptModal, setViewReceiptModal] = useState(null)
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) { setBookings(list => patchReceiptList(list, receipt)); setViewReceiptModal(current => current?.id === receipt.id ? receipt : current) } })
 
   /* Form Fields for New Booking */
   const [devoteeName, setDevoteeName] = useState('')
@@ -1010,6 +1013,7 @@ export default function TempleBookingPage() {
                                 }`}>
                                   {b.paymentStatus || 'Paid'}
                                 </span>
+                                <ReceiptPaymentAction receipt={b} templeId={session.id} />
                               </td>
                               <td className="px-5 py-3.5 text-center whitespace-nowrap">
                                 <button

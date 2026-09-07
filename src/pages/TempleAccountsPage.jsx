@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Building2,
@@ -115,7 +117,7 @@ function fmtINR(n) {
 const PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'UPI / Bank', 'Not recorded']
 
 function receiptDate(receipt) {
-  return receipt.bookingDate || receipt.dbDate || receipt.dateStr || receipt.savedAt?.slice(0, 10) || receipt.date || ''
+  return (receipt.paymentStatus !== 'Unpaid' && receipt.paidOn) || receipt.bookingDate || receipt.dbDate || receipt.dateStr || receipt.savedAt?.slice(0, 10) || receipt.date || ''
 }
 
 function paymentMethod(record) {
@@ -133,6 +135,7 @@ export default function TempleAccountsPage() {
   const [dbReceipts, setDbReceipts] = useState([])
   const [dbExpenses, setDbExpenses] = useState([])
   const [dbTransactions, setDbTransactions] = useState([])
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) setDbReceipts(list => patchReceiptList(list, receipt)) })
   const [loadingData, setLoadingData] = useState(true)
   const [showFullLedger, setShowFullLedger] = useState(false)
   const [ledgerType, setLedgerType] = useState('All')
@@ -296,6 +299,7 @@ export default function TempleAccountsPage() {
     // 1. Map real receipts from counter
     const receiptsFormatted = filteredReceipts.map(r => ({
       id: `rcpt-${r.id}`,
+      receipt: r,
       voucherNo: r.receiptNo || 'JV-2026-CTR',
       date: receiptDate(r),
       type: 'Credit',
@@ -963,6 +967,7 @@ export default function TempleAccountsPage() {
                             >
                               {txn.status}
                             </span>
+                            {txn.receipt && <ReceiptPaymentAction receipt={txn.receipt} templeId={session.id} />}
                           </td>
                         </tr>
                       )

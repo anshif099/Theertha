@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Download, LogIn, ReceiptText } from 'lucide-react'
 import { hasAdminSession } from '../lib/adminSession.js'
@@ -83,6 +85,7 @@ function CounterLedger({ counter }) {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
   const [receipts, setReceipts] = useState([])
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === counter.templeId) setReceipts(list => patchReceiptList(list, receipt)) })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('All')
@@ -111,7 +114,7 @@ function CounterLedger({ counter }) {
       await downloadCounterLedgerPdf({ counter,
         filters: { status, method, from, to },
         totals: { count: filtered.length, amount: money(total(filtered)), paidCount: paid.length, paidAmount: money(total(paid)), unpaidCount: unpaid.length, unpaidAmount: money(total(unpaid)) },
-        rows: filtered.map(receipt => [receipt.receiptNo || receipt.id, dateOf(receipt), `${receipt.devoteeName || 'Anonymous'}\n${receipt.mobile || ''}`, receipt.items?.map(item => `${item.name} (${item.qty || 1})`).join(', ') || '—', methodOf(receipt), statusOf(receipt), money(receipt.total)]),
+        rows: filtered.map(receipt => [receipt.receiptNo || receipt.id, dateOf(receipt), `${receipt.devoteeName || 'Anonymous'}\n${receipt.mobile || ''}`, receipt.items?.map(item => `${item.name} (${item.qty || 1})`).join(', ') || '—', methodOf(receipt), `${statusOf(receipt)}${receipt.paidOn ? '\nPaid on ' + receipt.paidOn : ''}`, money(receipt.total)]),
       })
     } catch {
       setDownloadError('Unable to download the PDF. Please try again.')
@@ -138,7 +141,7 @@ function CounterLedger({ counter }) {
       <table className="w-full min-w-[850px] text-left text-sm">
         <thead><tr>{['Receipt', 'Date', 'Devotee', 'Seva / Offering', 'Payment method', 'Status', 'Amount'].map(label => <th key={label} className="p-4 text-[#F7D77C]">{label}</th>)}</tr></thead>
         <tbody>{filtered.map((receipt, index) => <tr key={`${receipt.id}-${index}`} className="border-t border-white/10">
-          <td className="p-4 font-mono">{receipt.receiptNo || receipt.id}</td><td className="p-4">{dateOf(receipt)}</td><td className="p-4">{receipt.devoteeName || 'Anonymous'}<p className="text-white/50">{receipt.mobile}</p></td><td className="p-4">{receipt.items?.map(item => `${item.name} (${item.qty || 1})`).join(', ') || '—'}</td><td className="p-4">{methodOf(receipt)}</td><td className={`p-4 ${statusOf(receipt) === 'Unpaid' ? 'text-rose-400' : 'text-emerald-400'}`}>{statusOf(receipt)}</td><td className="p-4 font-bold">{money(receipt.total)}</td>
+          <td className="p-4 font-mono">{receipt.receiptNo || receipt.id}</td><td className="p-4">{dateOf(receipt)}</td><td className="p-4">{receipt.devoteeName || 'Anonymous'}<p className="text-white/50">{receipt.mobile}</p></td><td className="p-4">{receipt.items?.map(item => `${item.name} (${item.qty || 1})`).join(', ') || '—'}</td><td className="p-4">{methodOf(receipt)}</td><td className={`p-4 ${statusOf(receipt) === 'Unpaid' ? 'text-rose-400' : 'text-emerald-400'}`}>{statusOf(receipt)}<ReceiptPaymentAction receipt={receipt} templeId={counter.templeId} /></td><td className="p-4 font-bold">{money(receipt.total)}</td>
         </tr>)}{!filtered.length && <tr><td colSpan={7} className="p-10 text-center text-white/50">No receipts match this counter and the selected filters.</td></tr>}</tbody>
       </table>
     </div>

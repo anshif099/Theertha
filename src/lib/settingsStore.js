@@ -38,6 +38,8 @@ export function encodeReceiptPayload(receipt) {
       tot: receipt.total || 0,
       pm: receipt.paymentMethod || 'Cash',
       ps: receipt.paymentStatus || 'Paid',
+      paidOn: receipt.paidOn || '',
+      paidAt: receipt.paidAt || '',
       dt: receipt.date || receipt.bookingDate || '',
       tm: receipt.time || '',
       pName: receipt.priestName || ''
@@ -70,6 +72,8 @@ export function decodeReceiptPayload(base64Str) {
       total: compact.tot,
       paymentMethod: compact.pm,
       paymentStatus: compact.ps,
+      paidOn: compact.paidOn || '',
+      paidAt: compact.paidAt || '',
       date: compact.dt,
       time: compact.tm,
       priestName: compact.pName,
@@ -366,7 +370,12 @@ export async function saveReceipt(templeId, receipt) {
   const date = receipt.bookingDate || todayStr()
   const localKey = `theertha-receipts-${safeTempleId}`
   let newId = `rc-${Date.now()}`
-  const record = { ...receipt, templeId: safeTempleId, savedAt: new Date().toISOString(), dbDate: date }
+  const now = new Date()
+  const payment = receipt.paymentStatus !== 'Unpaid' ? {
+    paidAt: receipt.paidAt || now.toISOString(),
+    paidOn: receipt.paidOn || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+  } : {}
+  const record = { ...receipt, ...payment, templeId: safeTempleId, savedAt: now.toISOString(), dbDate: date }
 
   try {
     const newRef = push(ref(realtimeDb, `${TEMPLE_DB_PATH}/${safeTempleId}/receipts/${date}`))

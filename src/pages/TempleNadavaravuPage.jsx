@@ -1,3 +1,6 @@
+import { localPaymentDate } from '../lib/receiptPayments.js'
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useState, useMemo } from 'react'
 import {
   Building2,
@@ -81,6 +84,7 @@ export default function TempleNadavaravuPage() {
 
   /* Live dynamic data */
   const [dbReceipts, setDbReceipts] = useState([])
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) setDbReceipts(list => patchReceiptList(list, receipt)) })
   const [dbStatuses, setDbStatuses] = useState({})
   const [dbPriests, setDbPriests] = useState([])
   const [dbSlotsConfig, setDbSlotsConfig] = useState([])
@@ -192,6 +196,7 @@ export default function TempleNadavaravuPage() {
               priest: priestName,
               amount: Number(it.amount || 0) * Number(it.qty || 1),
               status: dbStatus,
+              receipt: r,
               paymentStatus: r.paymentStatus === 'Unpaid' ? 'Unpaid' : 'Paid',
               isDefault: false,
             })
@@ -219,7 +224,7 @@ export default function TempleNadavaravuPage() {
     const liveCount = sevaRegister.filter(item => ['In progress', 'Live'].includes(item.status)).length
     const upcomingCount = totalCount - completedCount - liveCount
 
-    const totalCollection = sevaRegister.filter(item => item.paymentStatus === 'Paid').reduce((sum, item) => sum + (item.amount || 0), 0)
+    const totalCollection = sevaRegister.filter(item => item.paymentStatus === 'Paid' && (!item.receipt.paidOn || item.receipt.paidOn === localPaymentDate())).reduce((sum, item) => sum + (item.amount || 0), 0)
 
     return {
       totalCount,
@@ -654,6 +659,7 @@ export default function TempleNadavaravuPage() {
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${item.paymentStatus === 'Unpaid' ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
                                 {item.paymentStatus}
                               </span>
+                              <ReceiptPaymentAction receipt={item.receipt} templeId={session.id} />
                             </td>
                             <td className="px-5 py-4 text-center">
                               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadgeClass(item.status)}`}>

@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
@@ -126,6 +128,7 @@ export default function TempleDailySchedulePage() {
   // Daily bookings schedule states
   const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [bookings, setBookings] = useState([])
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) setBookings(list => patchReceiptList(list, receipt)) })
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
 
@@ -397,6 +400,7 @@ export default function TempleDailySchedulePage() {
                           }`}>
                             {b.paymentStatus || 'Paid'}
                           </span>
+                                <ReceiptPaymentAction receipt={b} templeId={session.id} />
                         </td>
                         <td className="whitespace-nowrap px-6 py-4.5 text-right font-bold font-mono text-[#0B1F3A] print:text-black">
                           ₹{Number(b.total || 0).toLocaleString('en-IN')}

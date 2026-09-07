@@ -1,3 +1,5 @@
+import ReceiptPaymentAction from '../components/ReceiptPaymentAction.jsx'
+import { useReceiptPaymentUpdates, patchDevoteePayment } from '../lib/useReceiptPaymentUpdates.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
@@ -118,6 +120,7 @@ export default function TempleDevoteesPage() {
 
   // View details modal
   const [activeDevotee, setActiveDevotee] = useState(null)
+  useReceiptPaymentUpdates(({ templeId, receipt }) => { if (templeId === session?.id) { setDevotees(list => list.map(person => patchDevoteePayment(person, receipt))); setActiveDevotee(person => patchDevoteePayment(person, receipt)) } })
 
   const initials = useMemo(() => getInitials(temple?.name || 'Temple'), [temple])
 
@@ -597,6 +600,7 @@ export default function TempleDevoteesPage() {
                                   }`}>
                                     {r.paymentStatus || 'Paid'}
                                   </span>
+                                  <ReceiptPaymentAction receipt={r} templeId={session.id} />
                                 </div>
                               </div>
                             ))
