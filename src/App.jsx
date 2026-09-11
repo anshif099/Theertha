@@ -3,7 +3,7 @@ import CounterDashboardPage from './pages/CounterDashboardPage.jsx'
 import CounterLoginPage from './pages/CounterLoginPage.jsx'
 import CounterLedgerPage from './pages/CounterLedgerPage.jsx'
 import { hasAdminSession } from './lib/adminSession.js'
-import { getTempleSession } from './lib/templeSession.js'
+import { getTempleSession, getCounterSession } from './lib/templeSession.js'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import TempleDashboardPage from './pages/TempleDashboardPage.jsx'
 import TempleLoginPage from './pages/TempleLoginPage.jsx'
@@ -92,7 +92,10 @@ function App() {
   }
 
   if (path === '/temple/counter') {
-    return hasAdminSession() || getTempleSession() ? <CounterLedgerPage /> : <CounterLoginPage />
+    if (getCounterSession()) {
+      return <CounterDashboardPage />
+    }
+    return hasAdminSession() || (getTempleSession() && !getTempleSession()?.isCounter) ? <CounterLedgerPage /> : <CounterLoginPage />
   }
 
   if (path === '/superadmin/counters') return <CounterLedgerPage superAdminOnly />

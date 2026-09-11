@@ -24,12 +24,13 @@ import {
   Download,
   CheckCircle,
   AlertTriangle,
+  ArrowLeft,
   ArrowUpRight,
   ShieldAlert,
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
-import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
+import { endTempleSession, endCounterSession, getTempleSession } from '../lib/templeSession.js'
 import { navigateTo } from '../lib/router.js'
 import {
   loadExpenses,
@@ -140,6 +141,7 @@ export default function TempleAccountsPage() {
   const [showFullLedger, setShowFullLedger] = useState(false)
   const [ledgerType, setLedgerType] = useState('All')
   const [ledgerMethod, setLedgerMethod] = useState('All')
+  const [counterScope, setCounterScope] = useState('All')
 
   /* Date Range Filter State */
   const [filterType, setFilterType] = useState('Monthly')
@@ -263,6 +265,10 @@ export default function TempleAccountsPage() {
   /* Filtered Array Slices strictly by selected view / date ranges */
   const filteredReceipts = useMemo(() => {
     return dbReceipts.filter(r => {
+      if (session?.isCounter && counterScope === 'My Counter') {
+        const matchesCounter = (r.counterId && r.counterId === session.counterId) || (r.counterNo && String(r.counterNo) === String(session.counterNo))
+        if (!matchesCounter) return false
+      }
       const dateStr = receiptDate(r)
       if (!dateStr) return false
       if (filterType === 'Daily') return dateStr === selectedDay
@@ -270,7 +276,7 @@ export default function TempleAccountsPage() {
       if (filterType === 'Yearly') return dateStr.startsWith(selectedYear)
       return true
     })
-  }, [dbReceipts, filterType, selectedDay, selectedMonth, selectedYear])
+  }, [dbReceipts, filterType, selectedDay, selectedMonth, selectedYear, session, counterScope])
 
   const filteredExpenses = useMemo(() => {
     return dbExpenses.filter(e => {
@@ -495,12 +501,78 @@ export default function TempleAccountsPage() {
     }
   }
 
+
   function handleLogout() {
-    endTempleSession()
-    navigateTo('/temple-login')
+    if (session?.isCounter) {
+      endCounterSession()
+      endTempleSession()
+      navigateTo('/temple/counter/login')
+    } else {
+      endTempleSession()
+      navigateTo('/temple-login')
+    }
   }
 
   function SidebarContent() {
+    if (session?.isCounter) {
+      const counterMenuItems = [
+        { label: 'Counter Billing', icon: ReceiptText, href: '/temple/counter/dashboard' },
+        { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+        { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
+      ]
+
+      return (
+        <>
+          <a href="/" aria-label="Back to THEERTHA landing page">
+            <BrandMark compact />
+          </a>
+          <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+            Counter Menu
+          </p>
+          <nav className="mt-3 grid gap-2">
+            {counterMenuItems.map((item) => {
+              const Icon = item.icon
+              const isCurrent = item.label === 'Accounts'
+
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
+                    isCurrent
+                      ? 'bg-[#D4A017]/14 text-[#F7D77C]'
+                      : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
+                  }`}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  {item.label}
+                </a>
+              )
+            })}
+          </nav>
+          <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+            <div className="rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+              <p className="text-sm font-semibold text-[#F7D77C]">Counter #{session.counterNo}</p>
+              <p className="mt-1 text-xs font-medium text-[#EFE6D3]/90">{session.counterName}</p>
+              <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">{session.loginId}</p>
+              <p className="mt-1 text-xs text-[#EFE6D3]/60">{temple?.name || session.name}</p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"
+            >
+              <LogOut size={18} aria-hidden="true" />
+              Logout Counter
+            </button>
+          </div>
+        </>
+      )
+    }
+
     return (
       <>
         <a href="/" aria-label="Back to THEERTHA landing page">
@@ -632,12 +704,61 @@ export default function TempleAccountsPage() {
                 <span className="text-white/20">/</span>
                 <span className="text-[#EFE6D3]/60">Dashboard</span>
               </div>
-              <h1 className="font-display mt-1 text-2xl font-black text-[#F8F6F0] tracking-wide">
-                Financial Ledger
-              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                {session?.isCounter && (
+                  <a
+                    href="/temple/counter/dashboard"
+                    className="flex items-center gap-1 text-xs font-semibold text-[#F7D77C] hover:underline"
+                  >
+                    <ArrowLeft size={13} /> Back to Counter
+                  </a>
+                )}
+                <h1 className="font-display text-2xl font-black text-[#F8F6F0] tracking-wide">
+                  Financial Ledger
+                </h1>
+              </div>
             </div>
 
+            {/* Direct Navigation Tabs */}
+            {session?.isCounter && (
+              <nav className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Counter header navigation">
+                <a
+                  href="/temple/counter/dashboard"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+                >
+                  <ReceiptText size={13} />
+                  Counter Billing
+                </a>
+                <a
+                  href="/temple/daily-schedule"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+                >
+                  <CalendarDays size={13} />
+                  Daily Schedule
+                </a>
+                <a
+                  href="/temple/accounts"
+                  className="flex items-center gap-1.5 rounded-lg bg-[#D4A017] px-3 py-1.5 text-xs font-bold text-[#07172D] shadow-sm transition"
+                >
+                  <WalletCards size={13} />
+                  Accounts
+                </a>
+              </nav>
+            )}
+
             <div className="flex flex-wrap items-center gap-3">
+              {/* Counter Scope Filter when in counter session */}
+              {session?.isCounter && (
+                <select 
+                  value={counterScope} 
+                  onChange={(e) => setCounterScope(e.target.value)}
+                  className="bg-[#D4A017]/15 border border-[#D4A017]/40 text-xs font-bold rounded-lg px-3.5 py-2.5 outline-none focus:border-[#D4A017] text-[#F7D77C] cursor-pointer"
+                >
+                  <option value="All" className="bg-[#141519] text-white">All Counters</option>
+                  <option value="My Counter" className="bg-[#141519] text-white">My Counter (#{session.counterNo})</option>
+                </select>
+              )}
+
               {/* View Type Toggle */}
               <select 
                 value={filterType} 
@@ -700,6 +821,18 @@ export default function TempleAccountsPage() {
                 <Plus size={15} />
                 New entry
               </button>
+
+              {session?.isCounter && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20 transition"
+                  title="Logout Counter"
+                >
+                  <LogOut size={13} />
+                  Logout
+                </button>
+              )}
             </div>
           </div>
         </header>

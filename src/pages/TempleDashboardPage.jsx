@@ -177,6 +177,10 @@ export default function TempleDashboardPage() {
       navigateTo('/temple-login')
       return undefined
     }
+    if (session.isCounter) {
+      navigateTo('/temple/counter/dashboard')
+      return undefined
+    }
 
     let isActive = true
 

@@ -314,10 +314,14 @@ export default function TempleSettingsPage() {
     [templeName, form.name, form.number],
   )
 
-  /* redirect if not logged in */
+  /* redirect if not logged in or if counter user */
   useEffect(() => {
     if (!session) {
       navigateTo('/temple-login')
+      return
+    }
+    if (session.isCounter) {
+      navigateTo('/temple/counter/dashboard')
     }
   }, [session])
 

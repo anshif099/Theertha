@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
-import { endTempleSession, getTempleSession } from '../lib/templeSession.js'
+import { endTempleSession, endCounterSession, getTempleSession } from '../lib/templeSession.js'
 import { loadTodayReceipts } from '../lib/settingsStore.js'
 import { getNormalizedPath, navigateTo } from '../lib/router.js'
 
@@ -75,8 +75,59 @@ function fmtDate(s) {
   return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function SidebarContent({ temple, onClose }) {
+function SidebarContent({ temple, session, onClose }) {
   const activeHref = getNormalizedPath()
+  const isCounter = Boolean(session?.isCounter)
+
+  if (isCounter) {
+    const counterMenuItems = [
+      { label: 'Counter Billing', icon: ReceiptText, href: '/temple/counter/dashboard' },
+      { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+      { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
+    ]
+
+    return (
+      <>
+        <a href="/" aria-label="Back to THEERTHA"><BrandMark compact /></a>
+        <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">Counter Menu</p>
+        <nav className="mt-3 grid gap-2">
+          {counterMenuItems.map((item) => {
+            const Icon = item.icon
+            const active = activeHref === item.href
+            return (
+              <a key={item.label} href={item.href} onClick={onClose}
+                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${active ? 'bg-[#D4A017]/14 text-[#F7D77C]' : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'}`}>
+                <Icon size={18} aria-hidden="true" />{item.label}
+              </a>
+            )
+          })}
+        </nav>
+        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+          <div className="rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+            <p className="text-sm font-semibold text-[#F7D77C]">Counter #{session.counterNo}</p>
+            <p className="mt-1 text-xs font-medium text-[#EFE6D3]/90">{session.counterName}</p>
+            <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">{session.loginId}</p>
+            <p className="mt-1 text-xs text-[#EFE6D3]/60">{temple?.name || session.name}</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              endCounterSession()
+              endTempleSession()
+              navigateTo('/temple/counter/login')
+            }}
+            className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"
+          >
+            <LogOut size={18} aria-hidden="true" />
+            Logout Counter
+          </button>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <a href="/" aria-label="Back to THEERTHA"><BrandMark compact /></a>
@@ -210,7 +261,7 @@ export default function TempleDailySchedulePage() {
       {/* Sidebar mobile */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] transition-transform duration-300 lg:hidden no-print ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-start justify-between">
-          <div className="flex-1"><SidebarContent temple={temple} onClose={() => setSidebarOpen(false)} /></div>
+          <div className="flex-1"><SidebarContent temple={temple} session={session} onClose={() => setSidebarOpen(false)} /></div>
           <button type="button" onClick={() => setSidebarOpen(false)}
             className="ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[#EFE6D3]/70 hover:bg-white/10"><X size={20} /></button>
         </div>
@@ -218,28 +269,77 @@ export default function TempleDailySchedulePage() {
 
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-[#D4A017]/18 bg-[#07172D] px-5 py-6 text-[#F8F6F0] lg:block no-print">
-        <SidebarContent temple={temple} onClose={undefined} />
+        <SidebarContent temple={temple} session={session} onClose={undefined} />
       </aside>
 
       <div className="lg:pl-72">
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-[#D4A017]/18 bg-[#F8F6F0]/88 px-5 py-4 backdrop-blur-xl sm:px-8 no-print">
-          <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="relative mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setSidebarOpen(true)}
                 className="flex h-10 w-10 items-center justify-center rounded-md text-[#0B1F3A] hover:bg-[#D4A017]/10 lg:hidden">
                 <Menu size={22} />
               </button>
-              <a href="/temple/dashboard"
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#9C7414] hover:text-[#0B1F3A] transition">
-                <ArrowLeft size={15} /> Dashboard
-              </a>
+              {session?.isCounter ? (
+                <a href="/temple/counter/dashboard"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-[#9C7414] hover:text-[#0B1F3A] transition">
+                  <ArrowLeft size={15} /> Back to Counter
+                </a>
+              ) : (
+                <a href="/temple/dashboard"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-[#9C7414] hover:text-[#0B1F3A] transition">
+                  <ArrowLeft size={15} /> Dashboard
+                </a>
+              )}
               <span className="text-[#9C7414]/40">/</span>
               <span className="text-sm font-semibold text-[#0B1F3A]">Daily Schedule</span>
             </div>
+
+            {/* Direct Navigation Tabs */}
+            {session?.isCounter && (
+              <nav className="flex items-center gap-1 rounded-xl border border-[#D4A017]/25 bg-white/80 p-1 shadow-sm" aria-label="Counter header navigation">
+                <a
+                  href="/temple/counter/dashboard"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#42516A] transition hover:bg-[#D4A017]/10 hover:text-[#0B1F3A]"
+                >
+                  <ReceiptText size={13} />
+                  Counter Billing
+                </a>
+                <a
+                  href="/temple/daily-schedule"
+                  className="flex items-center gap-1.5 rounded-lg bg-[#D4A017] px-3 py-1.5 text-xs font-bold text-[#07172D] shadow-sm transition"
+                >
+                  <CalendarDays size={13} />
+                  Daily Schedule
+                </a>
+                <a
+                  href="/temple/accounts"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#42516A] transition hover:bg-[#D4A017]/10 hover:text-[#0B1F3A]"
+                >
+                  <WalletCards size={13} />
+                  Accounts
+                </a>
+              </nav>
+            )}
+
             <div className="flex items-center gap-3">
+              {session?.isCounter && (
+                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-[#D4A017]/30 bg-[#D4A017]/15 px-3 py-1 text-xs font-bold text-[#9C7414]">
+                  Counter #{session.counterNo} — {session.counterName}
+                </span>
+              )}
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F3A] text-sm font-semibold text-[#F7D77C]">{initials}</span>
-              <button type="button" onClick={() => { endTempleSession(); navigateTo('/temple-login') }}
+              <button type="button" onClick={() => {
+                if (session?.isCounter) {
+                  endCounterSession()
+                  endTempleSession()
+                  navigateTo('/temple/counter/login')
+                } else {
+                  endTempleSession()
+                  navigateTo('/temple-login')
+                }
+              }}
                 className="flex items-center gap-2 rounded-md bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-[#F8F6F0] hover:bg-[#123761]">
                 <LogOut size={15} /> Logout
               </button>

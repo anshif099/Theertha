@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   UserPlus,
+  WalletCards,
   X,
 } from 'lucide-react'
 import { getNextReceiptNo, loadQuickItems, loadStars, saveReceipt, loadTodayReceipts, saveDevotee, getDevoteeByMobile, loadAllReceipts, loadPriests } from '../lib/settingsStore.js'
@@ -815,7 +816,7 @@ export default function CounterDashboardPage() {
 
   function handleLogout() {
     sessionStorage.removeItem('theertha-counter-session')
-    navigateTo('/temple/counter')
+    navigateTo('/temple/counter/login')
   }
 
   if (!counterSession) return null
@@ -826,15 +827,42 @@ export default function CounterDashboardPage() {
     <div className="flex min-h-screen flex-col bg-[#071828] text-[#F8F6F0]">
 
       {/* ── Top Header ── */}
-      <header className="flex flex-wrap items-center gap-3 border-b border-[#D4A017]/18 bg-[#0B1F3A]/90 px-5 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <ReceiptText size={16} className="text-[#F7D77C]" aria-hidden="true" />
-          <span className="text-[#EFE6D3]/50">Counter Management</span>
-          <span className="text-[#EFE6D3]/30">/</span>
-          <span className="text-[#F8F6F0]">New Receipt</span>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4A017]/18 bg-[#0B1F3A]/90 px-5 py-3 backdrop-blur-md">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ReceiptText size={16} className="text-[#F7D77C]" aria-hidden="true" />
+            <span className="text-[#EFE6D3]/50">Counter Management</span>
+            <span className="text-[#EFE6D3]/30">/</span>
+            <span className="text-[#F8F6F0]">New Receipt</span>
+          </div>
+
+          {/* ── Direct Navigation Tabs ── */}
+          <nav className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Counter navigation">
+            <a
+              href="/temple/counter/dashboard"
+              className="flex items-center gap-1.5 rounded-lg bg-[#D4A017] px-3 py-1.5 text-xs font-bold text-[#07172D] shadow-sm transition"
+            >
+              <ReceiptText size={13} />
+              Counter Billing
+            </a>
+            <a
+              href="/temple/daily-schedule"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+            >
+              <CalendarDays size={13} className="text-[#F7D77C]" />
+              Daily Schedule
+            </a>
+            <a
+              href="/temple/accounts"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+            >
+              <WalletCards size={13} className="text-[#F7D77C]" />
+              Accounts
+            </a>
+          </nav>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Counter badge */}
           <span className="flex items-center gap-1.5 rounded-full border border-[#D4A017]/30 bg-[#D4A017]/10 px-3 py-1 text-xs font-bold text-[#F7D77C]">
             Counter #{counterSession.counterNo} — {counterSession.counterName}
