@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
-import { endTempleSession, endCounterSession, getTempleSession } from '../lib/templeSession.js'
+import { endTempleSession, endCounterSession, getTempleSession, getCounterSession } from '../lib/templeSession.js'
 import { navigateTo } from '../lib/router.js'
 import {
   loadExpenses,
@@ -336,6 +336,10 @@ export default function TempleAccountsPage() {
   const initials = useMemo(() => getInitials(templeName), [templeName])
 
   useEffect(() => {
+    if (getCounterSession() || session?.isCounter) {
+      navigateTo('/temple/counter/dashboard?tab=accounts')
+      return undefined
+    }
     if (!session) {
       navigateTo('/temple-login')
       return undefined

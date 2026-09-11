@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark.jsx'
 import { getRegisteredTemple } from '../lib/templeStore.js'
-import { endTempleSession, endCounterSession, getTempleSession } from '../lib/templeSession.js'
+import { endTempleSession, endCounterSession, getTempleSession, getCounterSession } from '../lib/templeSession.js'
 import { loadTodayReceipts } from '../lib/settingsStore.js'
 import { getNormalizedPath, navigateTo } from '../lib/router.js'
 
@@ -201,6 +201,10 @@ export default function TempleDailySchedulePage() {
   }
 
   useEffect(() => {
+    if (getCounterSession() || session?.isCounter) {
+      navigateTo('/temple/counter/dashboard?tab=schedule')
+      return
+    }
     if (!session) {
       navigateTo('/temple-login')
       return

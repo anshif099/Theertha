@@ -24,6 +24,8 @@ import { getRegisteredTemple } from '../lib/templeStore.js'
 import { getTempleSession } from '../lib/templeSession.js'
 import { ALL_27_NAKSHATRAS, getRepeatingNakshatraDates, getRepeatingFixedDates, normalizeNakshatraName } from '../lib/nakshatraHelper.js'
 import { navigateTo } from '../lib/router.js'
+import CounterScheduleView from '../components/CounterScheduleView.jsx'
+import CounterAccountsView from '../components/CounterAccountsView.jsx'
 
 
 function fmtINR(n) {
@@ -114,7 +116,37 @@ function convert24hTo12h(time24) {
 /* ══════════════════════════════════════════════
    Counter Dashboard Page
    ══════════════════════════════════════════════ */
-export default function CounterDashboardPage() {
+export default function CounterDashboardPage({ initialTab = 'billing' }) {
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('tab')
+      return p || initialTab || 'billing'
+    } catch {
+      return initialTab || 'billing'
+    }
+  })
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    try {
+      const url = new URL(window.location.href)
+      if (tab === 'billing') {
+        url.searchParams.delete('tab')
+      } else {
+        url.searchParams.set('tab', tab)
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      // ignore
+    }
+  }
+
   /* read counter session */
   const [counterSession, setCounterSession] = useState(() => {
     try {
@@ -814,6 +846,15 @@ export default function CounterDashboardPage() {
     }
   }
 
+  function handlePrintDirect(receipt) {
+    sessionStorage.setItem('theertha-last-receipt', JSON.stringify(receipt))
+    navigateTo('/temple/counter/receipt-preview')
+  }
+
+  function printDaySummary() {
+    printShiftSummary()
+  }
+
   function handleLogout() {
     sessionStorage.removeItem('theertha-counter-session')
     navigateTo('/temple/counter/login')
@@ -833,32 +874,49 @@ export default function CounterDashboardPage() {
             <ReceiptText size={16} className="text-[#F7D77C]" aria-hidden="true" />
             <span className="text-[#EFE6D3]/50">Counter Management</span>
             <span className="text-[#EFE6D3]/30">/</span>
-            <span className="text-[#F8F6F0]">New Receipt</span>
+            <span className="text-[#F8F6F0]">
+              {activeTab === 'schedule' ? 'Daily Schedule' : activeTab === 'accounts' ? 'Accounts & Ledger' : 'New Receipt'}
+            </span>
           </div>
 
-          {/* ── Direct Navigation Tabs ── */}
+          {/* ── Direct Navigation Tabs (Embedded views inside Counter) ── */}
           <nav className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Counter navigation">
-            <a
-              href="/temple/counter/dashboard"
-              className="flex items-center gap-1.5 rounded-lg bg-[#D4A017] px-3 py-1.5 text-xs font-bold text-[#07172D] shadow-sm transition"
+            <button
+              type="button"
+              onClick={() => handleTabChange('billing')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                activeTab === 'billing'
+                  ? 'bg-[#D4A017] text-[#07172D] shadow-sm'
+                  : 'text-[#EFE6D3]/75 hover:bg-white/10 hover:text-[#F8F6F0]'
+              }`}
             >
               <ReceiptText size={13} />
               Counter Billing
-            </a>
-            <a
-              href="/temple/daily-schedule"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('schedule')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                activeTab === 'schedule'
+                  ? 'bg-[#D4A017] text-[#07172D] shadow-sm'
+                  : 'text-[#EFE6D3]/75 hover:bg-white/10 hover:text-[#F8F6F0]'
+              }`}
             >
-              <CalendarDays size={13} className="text-[#F7D77C]" />
+              <CalendarDays size={13} className={activeTab === 'schedule' ? 'text-[#07172D]' : 'text-[#F7D77C]'} />
               Daily Schedule
-            </a>
-            <a
-              href="/temple/accounts"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#EFE6D3]/75 transition hover:bg-white/10 hover:text-[#F8F6F0]"
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('accounts')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                activeTab === 'accounts'
+                  ? 'bg-[#D4A017] text-[#07172D] shadow-sm'
+                  : 'text-[#EFE6D3]/75 hover:bg-white/10 hover:text-[#F8F6F0]'
+              }`}
             >
-              <WalletCards size={13} className="text-[#F7D77C]" />
+              <WalletCards size={13} className={activeTab === 'accounts' ? 'text-[#07172D]' : 'text-[#F7D77C]'} />
               Accounts
-            </a>
+            </button>
           </nav>
         </div>
 
@@ -875,7 +933,10 @@ export default function CounterDashboardPage() {
           {/* New receipt */}
           <button
             type="button"
-            onClick={handleNewReceipt}
+            onClick={() => {
+              handleTabChange('billing')
+              handleNewReceipt()
+            }}
             className="rounded-lg border border-[#D4A017]/30 px-3 py-1.5 text-xs font-semibold text-[#F7D77C] transition hover:bg-[#D4A017]/10"
           >
             + New
@@ -892,8 +953,26 @@ export default function CounterDashboardPage() {
         </div>
       </header>
 
-      {/* ── Main Content ── */}
-      <div className="flex flex-col xl:flex-row">
+      {/* ── Main View (Billing / Schedule / Accounts) ── */}
+      {activeTab === 'schedule' ? (
+        <div className="flex-1 p-5 lg:p-6">
+          <CounterScheduleView
+            counterSession={counterSession}
+            onPrintReceipt={handlePrintDirect}
+          />
+        </div>
+      ) : activeTab === 'accounts' ? (
+        <div className="flex-1 p-5 lg:p-6">
+          <CounterAccountsView
+            counterSession={counterSession}
+            onPrintShiftSummary={printShiftSummary}
+            onPrintDaySummary={printDaySummary}
+          />
+        </div>
+      ) : (
+        <>
+          {/* ── Main Content ── */}
+          <div className="flex flex-col xl:flex-row">
 
         {/* ── LEFT: Receipt Form ── */}
         <div className="border-b border-[#D4A017]/12 p-5 xl:w-[52%] xl:border-b-0 xl:border-r xl:p-6">
@@ -1626,6 +1705,8 @@ export default function CounterDashboardPage() {
 
         </div>
       </section>
+        </>
+      )}
 
       {/* ── Custom Item Modal ── */}
       {showCustom && (

@@ -33,6 +33,9 @@ function App() {
     return <TempleDonationPage />
   }
   if (path === '/temple/daily-schedule') {
+    if (getCounterSession()) {
+      return <CounterDashboardPage initialTab="schedule" />
+    }
     return <TempleDailySchedulePage />
   }
   if (path === '/temple/fixed-deposit') {
@@ -72,6 +75,9 @@ function App() {
   }
 
   if (path === '/temple/accounts') {
+    if (getCounterSession()) {
+      return <CounterDashboardPage initialTab="accounts" />
+    }
     return <TempleAccountsPage />
   }
 
