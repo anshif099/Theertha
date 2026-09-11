@@ -126,6 +126,138 @@ function paymentMethod(record) {
   return PAYMENT_METHODS.find((method) => method.toLowerCase() === value.toLowerCase()) || value || 'Not recorded'
 }
 
+function SidebarContent({ session, temple, onClose, onLogout }) {
+  if (session?.isCounter) {
+    const counterMenuItems = [
+      { label: 'Counter Billing', icon: ReceiptText, href: '/temple/counter/dashboard' },
+      { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
+      { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
+    ]
+
+    return (
+      <>
+        <a href="/" aria-label="Back to THEERTHA landing page">
+          <BrandMark compact />
+        </a>
+        <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+          Counter Menu
+        </p>
+        <nav className="mt-3 grid gap-2">
+          {counterMenuItems.map((item) => {
+            const Icon = item.icon
+            const isCurrent = item.label === 'Accounts'
+
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
+                  isCurrent
+                    ? 'bg-[#D4A017]/14 text-[#F7D77C]'
+                    : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
+                }`}
+              >
+                <Icon size={18} aria-hidden="true" />
+                {item.label}
+              </a>
+            )
+          })}
+        </nav>
+        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+          <div className="rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+            <p className="text-sm font-semibold text-[#F7D77C]">Counter #{session.counterNo}</p>
+            <p className="mt-1 text-xs font-medium text-[#EFE6D3]/90">{session.counterName}</p>
+            <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">{session.loginId}</p>
+            <p className="mt-1 text-xs text-[#EFE6D3]/60">{temple?.name || session.name}</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"
+          >
+            <LogOut size={18} aria-hidden="true" />
+            Logout Counter
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <a href="/" aria-label="Back to THEERTHA landing page">
+        <BrandMark compact />
+      </a>
+      <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Main Menu
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {mainMenuItems.map((item) => {
+          const Icon = item.icon
+          const isCurrent = item.label === 'Accounts'
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={onClose}
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
+                isCurrent
+                  ? 'bg-[#D4A017]/14 text-[#F7D77C]'
+                  : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
+              }`}
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
+        Addons
+      </p>
+      <nav className="mt-3 grid gap-2">
+        {addonItems.map((item) => {
+          const Icon = item.icon
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={onClose}
+              className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+            >
+              <Icon size={18} aria-hidden="true" />
+              {item.label}
+            </a>
+          )
+        })}
+      </nav>
+      <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
+        <a
+          href="/temple/settings"
+          onClick={onClose}
+          className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
+        >
+          <Settings size={18} aria-hidden="true" />
+          Settings
+        </a>
+      </div>
+      <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
+        <p className="text-sm font-semibold text-[#F7D77C]">
+          Temple Access
+        </p>
+        <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
+          {temple?.loginId}
+        </p>
+      </div>
+    </>
+  )
+}
+
 export default function TempleAccountsPage() {
   const [session] = useState(getTempleSession)
   const [temple, setTemple] = useState(session)
@@ -513,138 +645,6 @@ export default function TempleAccountsPage() {
     }
   }
 
-  function SidebarContent() {
-    if (session?.isCounter) {
-      const counterMenuItems = [
-        { label: 'Counter Billing', icon: ReceiptText, href: '/temple/counter/dashboard' },
-        { label: 'Daily Schedule', icon: CalendarDays, href: '/temple/daily-schedule' },
-        { label: 'Accounts', icon: WalletCards, href: '/temple/accounts' },
-      ]
-
-      return (
-        <>
-          <a href="/" aria-label="Back to THEERTHA landing page">
-            <BrandMark compact />
-          </a>
-          <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-            Counter Menu
-          </p>
-          <nav className="mt-3 grid gap-2">
-            {counterMenuItems.map((item) => {
-              const Icon = item.icon
-              const isCurrent = item.label === 'Accounts'
-
-              return (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
-                    isCurrent
-                      ? 'bg-[#D4A017]/14 text-[#F7D77C]'
-                      : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
-                  }`}
-                >
-                  <Icon size={18} aria-hidden="true" />
-                  {item.label}
-                </a>
-              )
-            })}
-          </nav>
-          <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
-            <div className="rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
-              <p className="text-sm font-semibold text-[#F7D77C]">Counter #{session.counterNo}</p>
-              <p className="mt-1 text-xs font-medium text-[#EFE6D3]/90">{session.counterName}</p>
-              <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">{session.loginId}</p>
-              <p className="mt-1 text-xs text-[#EFE6D3]/60">{temple?.name || session.name}</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"
-            >
-              <LogOut size={18} aria-hidden="true" />
-              Logout Counter
-            </button>
-          </div>
-        </>
-      )
-    }
-
-    return (
-      <>
-        <a href="/" aria-label="Back to THEERTHA landing page">
-          <BrandMark compact />
-        </a>
-        <p className="mt-9 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Main Menu
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {mainMenuItems.map((item) => {
-            const Icon = item.icon
-            const isCurrent = item.label === 'Accounts'
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition ${
-                  isCurrent
-                    ? 'bg-[#D4A017]/14 text-[#F7D77C]'
-                    : 'text-[#EFE6D3]/68 hover:bg-white/8 hover:text-[#F8F6F0]'
-                }`}
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <p className="mt-6 px-4 text-xs font-semibold uppercase text-[#F7D77C]">
-          Addons
-        </p>
-        <nav className="mt-3 grid gap-2">
-          {addonItems.map((item) => {
-            const Icon = item.icon
-
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-        <div className="mt-6 border-t border-[#F8F6F0]/12 pt-4">
-          <a
-            href="/temple/settings"
-            onClick={() => setSidebarOpen(false)}
-            className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold text-[#EFE6D3]/68 transition hover:bg-white/8 hover:text-[#F8F6F0]"
-          >
-            <Settings size={18} aria-hidden="true" />
-            Settings
-          </a>
-        </div>
-        <div className="mt-4 rounded-lg border border-[#F8F6F0]/12 bg-white/6 p-4">
-          <p className="text-sm font-semibold text-[#F7D77C]">
-            Temple Access
-          </p>
-          <p className="mt-2 break-all font-mono text-xs leading-5 text-[#EFE6D3]/70">
-            {temple?.loginId}
-          </p>
-        </div>
-      </>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-[#141519] text-[#EFE6D3] font-sans selection:bg-[#D4A017] selection:text-[#0B1F3A]">
 
@@ -666,7 +666,7 @@ export default function TempleAccountsPage() {
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <SidebarContent />
+            <SidebarContent session={session} temple={temple} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />
           </div>
           <button
             type="button"
@@ -681,7 +681,7 @@ export default function TempleAccountsPage() {
 
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 overflow-y-auto border-r border-white/5 bg-[#0D0E12] px-5 py-6 text-[#F8F6F0] lg:block">
-        <SidebarContent />
+        <SidebarContent session={session} temple={temple} onClose={undefined} onLogout={handleLogout} />
       </aside>
 
       <div className="lg:pl-72">
