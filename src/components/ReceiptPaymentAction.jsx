@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { canUpdateReceipt, localPaymentDate, markReceiptPaid, resolvePaymentReceipt } from '../lib/receiptPayments.js'
 import { navigateTo } from '../lib/router.js'
 
-export default function ReceiptPaymentAction({ receipt: originalReceipt, templeId }) {
+export default function ReceiptPaymentAction({ receipt: originalReceipt, templeId, className }) {
   const [resolved, setResolved] = useState(null)
   const [open, setOpen] = useState(false)
   const receipt = (open && resolved) || originalReceipt
@@ -30,13 +30,13 @@ export default function ReceiptPaymentAction({ receipt: originalReceipt, templeI
     finally { setSaving(false) }
   }
   return <>
-    {receipt.paidOn && <span className="block text-[10px]">Paid on {receipt.paidOn}</span>}
+    {receipt.paidOn && <span className="block text-[10px] text-white/50">Paid on {receipt.paidOn}</span>}
     <button type="button" onClick={async event => {
       event.stopPropagation(); setError(''); setOpen(true); setSaving(true)
       try { setResolved(await resolvePaymentReceipt(id, originalReceipt)) }
       catch (err) { setError(err.message) }
       finally { setSaving(false) }
-    }} className="no-print ml-2 rounded border border-[#D4A017]/40 px-2 py-1 text-[11px] font-bold text-[#9C7414] hover:bg-[#D4A017]/10">
+    }} className={className || "no-print rounded border border-[#D4A017]/40 px-2 py-1 text-[11px] font-bold text-[#D4A017] hover:bg-[#D4A017]/15 hover:text-[#F7D77C] transition"}>
       {receipt.paymentStatus === 'Unpaid' ? 'Edit payment' : 'Paid bill'}
     </button>
     {open && createPortal(<div className="no-print fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" onClick={event => event.stopPropagation()}>

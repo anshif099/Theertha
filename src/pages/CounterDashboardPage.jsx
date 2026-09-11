@@ -967,6 +967,7 @@ export default function CounterDashboardPage({ initialTab = 'billing' }) {
             counterSession={counterSession}
             onPrintShiftSummary={printShiftSummary}
             onPrintDaySummary={printDaySummary}
+            onPrintReceipt={handlePrintDirect}
           />
         </div>
       ) : (

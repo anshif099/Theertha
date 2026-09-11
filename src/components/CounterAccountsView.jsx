@@ -19,6 +19,8 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
+import ReceiptPaymentAction from './ReceiptPaymentAction.jsx'
+import { navigateTo } from '../lib/router.js'
 import { loadAllReceipts, loadExpenses } from '../lib/settingsStore.js'
 import { useReceiptPaymentUpdates, patchReceiptList } from '../lib/useReceiptPaymentUpdates.js'
 
@@ -30,10 +32,24 @@ function receiptDate(r) {
   return (r.paymentStatus !== 'Unpaid' && r.paidOn) || r.bookingDate || r.dbDate || r.dateStr || r.savedAt?.slice(0, 10) || r.date || ''
 }
 
-export default function CounterAccountsView({ counterSession, onPrintShiftSummary, onPrintDaySummary }) {
+export default function CounterAccountsView({
+  counterSession,
+  onPrintShiftSummary,
+  onPrintDaySummary,
+  onPrintReceipt,
+}) {
   const [allReceiptsList, setAllReceiptsList] = useState([])
   const [expensesList, setExpensesList] = useState([])
   const [loading, setLoading] = useState(true)
+
+  function handleDirectPrint(receipt) {
+    if (onPrintReceipt) {
+      onPrintReceipt(receipt)
+    } else {
+      sessionStorage.setItem('theertha-last-receipt', JSON.stringify(receipt))
+      navigateTo('/temple/counter/receipt-preview')
+    }
+  }
 
   // Filters
   const [scope, setScope] = useState('this') // 'this' | 'all'
@@ -44,6 +60,7 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
   const [paymentModeFilter, setPaymentModeFilter] = useState('all') // 'all' | 'Cash' | 'UPI' | 'Card'
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'paid' | 'unpaid'
   const [searchQuery, setSearchQuery] = useState('')
   const [showDenominations, setShowDenominations] = useState(false)
 
@@ -106,6 +123,12 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
         if (pMode !== paymentModeFilter.toLowerCase()) return false
       }
 
+      // Status filter
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'unpaid' && r.paymentStatus !== 'Unpaid') return false
+        if (statusFilter === 'paid' && r.paymentStatus === 'Unpaid') return false
+      }
+
       // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
@@ -118,7 +141,7 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
 
       return true
     })
-  }, [allReceiptsList, scope, period, selectedDate, selectedMonth, paymentModeFilter, searchQuery, counterSession])
+  }, [allReceiptsList, scope, period, selectedDate, selectedMonth, paymentModeFilter, statusFilter, searchQuery, counterSession])
 
   // Financial statistics calculated from filteredReceipts
   const stats = useMemo(() => {
@@ -285,7 +308,7 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
       </div>
 
       {/* ── Key Financial Metric Cards ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {/* Total Collected */}
         <div className="rounded-xl border border-[#D4A017]/30 bg-[#D4A017]/10 p-4 shadow-sm backdrop-blur-sm">
           <div className="flex items-center justify-between">
@@ -294,6 +317,18 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
           </div>
           <p className="mt-2 font-display text-2xl font-black text-[#F7D77C]">{fmtINR(stats.totalIncome)}</p>
           <p className="mt-1 text-[10px] text-[#F7D77C]/60">{stats.paidCount} paid receipts</p>
+        </div>
+
+        {/* Unpaid / Pending Bookings */}
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400/80">Unpaid Bookings</p>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-300">
+              {stats.unpaidCount}
+            </span>
+          </div>
+          <p className="mt-2 font-display text-2xl font-black text-amber-400">{fmtINR(stats.unpaidAmount)}</p>
+          <p className="mt-1 text-[10px] text-amber-300/60">Pending collection</p>
         </div>
 
         {/* Cash in Drawer */}
@@ -447,6 +482,20 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
           </select>
         </div>
 
+        {/* Status Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-[#EFE6D3]/50">Status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-[#071828] px-3 py-1.5 text-xs font-semibold text-[#F8F6F0] outline-none cursor-pointer"
+          >
+            <option value="all">All Status</option>
+            <option value="paid">Paid Only</option>
+            <option value="unpaid">Unpaid Only</option>
+          </select>
+        </div>
+
         {/* Search */}
         <div className="flex min-w-[200px] items-center gap-2 rounded-lg border border-white/10 bg-[#071828] px-3 py-1.5 text-xs">
           <Search size={13} className="text-[#EFE6D3]/40" />
@@ -525,6 +574,7 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
                   <th className="px-4 py-3">Payment Mode</th>
                   <th className="px-4 py-3 text-right">Amount</th>
                   <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Actions / Print</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -586,14 +636,36 @@ export default function CounterAccountsView({ counterSession, onPrintShiftSummar
                       {/* Status */}
                       <td className="px-4 py-3 whitespace-nowrap text-center">
                         {isUnpaid ? (
-                          <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                          <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-400">
                             Unpaid
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                            Posted
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                            Paid
                           </span>
                         )}
+                      </td>
+
+                      {/* Actions / Print */}
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <div className="inline-flex items-center justify-end gap-2">
+                          {/* Unpaid payment action / Paid bill generator (same as admin) */}
+                          <ReceiptPaymentAction
+                            templeId={counterSession?.templeId}
+                            receipt={r}
+                          />
+
+                          {/* Direct Print Bill Option */}
+                          <button
+                            type="button"
+                            onClick={() => handleDirectPrint(r)}
+                            className="inline-flex items-center gap-1 rounded-md border border-[#D4A017]/40 bg-[#D4A017]/10 px-2.5 py-1 text-[11px] font-bold text-[#F7D77C] transition hover:bg-[#D4A017] hover:text-[#07172D]"
+                            title={isUnpaid ? "Print Unpaid Bill" : "Print Paid Bill"}
+                          >
+                            <Printer size={12} />
+                            Print
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
